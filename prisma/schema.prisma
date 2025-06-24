@@ -8,9 +8,52 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  userName  String
-  email     String   @unique
-  password  String
+  id           Int           @id @default(autoincrement())
+  userName     String
+  email        String        @unique
+  password     String
+  createdAt    DateTime      @default(now())
+  interests    UserInterest[]
+  events       Event[]       @relation("UserToEvent")
+  notifications Notification[]
+  pushToken     PushToken?    
+}
+
+model Event {
+  id         Int      @id @default(autoincrement())
+  location   String
+  address    String
+  startDate  DateTime
+  endDate    DateTime
+  createdAt  DateTime @default(now())
+  activity   String
+  creatorId  Int
+  creator    User @relation("UserToEvent", fields: [creatorId], references: [id])
+}
+
+
+model UserInterest {
+  id       Int    @id @default(autoincrement())
+  userId   Int
+  activity String
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model PushToken {
+  id        Int    @id @default(autoincrement())
+  userId    Int    @unique
+  token     String
   createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  message   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }

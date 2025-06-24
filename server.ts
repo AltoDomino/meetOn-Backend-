@@ -2,8 +2,11 @@ import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import registerRouter from "./routes/auth.registrationRoutes";
-
+import createEventRoutes from "./routes/createEventRoutes"
+import userInterestRoutes from "./routes/UserInterest"
 import loginRouter from "./routes/auth.loginRoutes"
+import notificationRoutes from "./routes/notificationRoutes"
+import pushTokenRoutes from "./routes/pushTokenRoutes";
 // import {
 //   notFoundHandler,
 //   serverErrorHandler,
@@ -32,8 +35,13 @@ app.use("/api/registration", registerRouter);
 
 app.use("/api/login", loginRouter);
 
-// app.use("/api", Settings);
+app.use("/api/Create-event", createEventRoutes);
 
+app.use("/api/interests", userInterestRoutes);
+
+app.use("/api/notifications", notificationRoutes);
+
+app.use("/api/push-token", pushTokenRoutes);
 // app.use(serverErrorHandler);
 
 // app.use(notFoundHandler);

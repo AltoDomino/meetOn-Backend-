@@ -2,7 +2,7 @@
 import { NextFunction, Request, Response } from "express";
 import { register } from "../services/auth.registrationserice";
 
-export const getRegister = async (
+export const getRegister =  async (
   req: Request,
   res: Response,
   next: NextFunction
