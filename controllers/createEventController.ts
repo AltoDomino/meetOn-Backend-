@@ -17,7 +17,7 @@ export const createEventController = async (req: Request, res: Response) => {
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         activity,
-        creatorId,
+        creatorId: Number(creatorId),
       },
     });
 

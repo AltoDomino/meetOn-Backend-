@@ -1,9 +1,13 @@
 import { NextFunction, Request, Response } from "express";
 import { login } from "../services/auth.loginService";
 
-export const getLogin = async (req: Request, res: Response, next: NextFunction) => {
+export const getLogin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { email, password } = req.body; 
+    const { email, password } = req.body;
 
     const user = await login(email, password);
 
@@ -12,6 +16,7 @@ export const getLogin = async (req: Request, res: Response, next: NextFunction) 
     }
 
     return res.status(200).json({
+      userId: user.id, // 👈 TU BYŁO BRAK
       userName: user.userName,
       email: user.email,
     });
