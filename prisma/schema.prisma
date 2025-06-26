@@ -9,14 +9,18 @@ datasource db {
 
 model User {
   id            Int            @id @default(autoincrement())
-  userName      String
+  userName      String         @unique
   email         String         @unique
   password      String
-  createdAt     DateTime       @default(now())
-  interests     UserInterest[]
-  events        Event[]        @relation("UserToEvent")
-  notifications Notification[]
+  createdEvents Event[]        @relation("CreatedEvents")
+  userInterests UserInterest[]
   pushToken     PushToken?
+
+  sentRequests     Friendship[]   @relation("Requester")
+  receivedRequests Friendship[]   @relation("Recipient")
+  Notification     Notification[]
+
+  createdAt DateTime @default(now())
 }
 
 model Event {
@@ -25,10 +29,11 @@ model Event {
   address   String
   startDate DateTime
   endDate   DateTime
-  createdAt DateTime @default(now())
   activity  String
   creatorId Int
-  creator   User     @relation("UserToEvent", fields: [creatorId], references: [id])
+  creator   User     @relation("CreatedEvents", fields: [creatorId], references: [id])
+
+  createdAt DateTime @default(now())
 }
 
 model UserInterest {
@@ -55,4 +60,16 @@ model Notification {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model Friendship {
+  id          Int  @id @default(autoincrement())
+  requester   User @relation("Requester", fields: [requesterId], references: [id])
+  requesterId Int
+
+  recipient   User @relation("Recipient", fields: [recipientId], references: [id])
+  recipientId Int
+
+  status    String // "pending", "accepted"
+  createdAt DateTime @default(now())
 }

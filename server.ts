@@ -9,6 +9,7 @@ import notificationRoutes from "./routes/notificationRoutes";
 import pushTokenRoutes from "./routes/pushTokenRoutes";
 import tokentest from "./routes/tokentest";
 import eventListRoutes from "./routes/eventListRoutes";
+import InviteFriends from "./routes/InviteFriends"
 // import {
 //   notFoundHandler,
 //   serverErrorHandler,
@@ -46,6 +47,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/push-token", pushTokenRoutes);
 
 app.use("/api/test-push", tokentest);
+
+app.use("/api/invite-friends", InviteFriends);
 
 // app.use(serverErrorHandler);
 

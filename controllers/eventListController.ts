@@ -17,7 +17,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       where: { userId },
     });
 
-    const interestNames = interests.map((i) => i.activity);
+    const interestNames = interests.map((i: { activity: any; }) => i.activity);
 
     // pobierz wydarzenia pasujące do zainteresowań (stworzonych przez innych)
     const matchingEvents = await prisma.event.findMany({
