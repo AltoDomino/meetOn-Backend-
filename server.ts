@@ -10,6 +10,8 @@ import pushTokenRoutes from "./routes/pushTokenRoutes";
 import tokentest from "./routes/tokentest";
 import eventListRoutes from "./routes/eventListRoutes";
 import InviteFriends from "./routes/InviteFriends"
+import EventJoinRoutes from "./routes/EventJoinRoutes"
+import EventLeaveRoutes from "./routes/EventLeaveRoutes";
 // import {
 //   notFoundHandler,
 //   serverErrorHandler,
@@ -49,6 +51,10 @@ app.use("/api/push-token", pushTokenRoutes);
 app.use("/api/test-push", tokentest);
 
 app.use("/api/invite-friends", InviteFriends);
+
+app.use("/api/join", EventJoinRoutes);
+
+app.use("/api/leave", EventLeaveRoutes);
 
 // app.use(serverErrorHandler);
 

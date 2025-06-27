@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 const expo = new Expo();
 
 export const createEventController = async (req: Request, res: Response) => {
-  const { location, address, startDate, endDate, activity, creatorId } = req.body;
+  const { location, address, startDate, endDate, activity, creatorId,spots } = req.body;
 
   try {
     const event = await prisma.event.create({
@@ -18,6 +18,7 @@ export const createEventController = async (req: Request, res: Response) => {
         endDate: new Date(endDate),
         activity,
         creatorId: Number(creatorId),
+         maxParticipants: Number(spots),
       },
     });
 

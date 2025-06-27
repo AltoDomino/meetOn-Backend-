@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // albo inna baza, której używasz
+  provider = "postgresql" 
   url      = env("DATABASE_URL")
 }
 
@@ -20,20 +20,24 @@ model User {
   receivedRequests Friendship[]   @relation("Recipient")
   Notification     Notification[]
 
+  participatedEvents EventParticipant[] 
+
   createdAt DateTime @default(now())
 }
 
 model Event {
-  id        Int      @id @default(autoincrement())
-  location  String
-  address   String
-  startDate DateTime
-  endDate   DateTime
-  activity  String
-  creatorId Int
-  creator   User     @relation("CreatedEvents", fields: [creatorId], references: [id])
+  id               Int                @id @default(autoincrement())
+  location         String
+  address          String
+  startDate        DateTime
+  endDate          DateTime
+  activity         String
+  maxParticipants  Int
+  creatorId        Int
+  creator          User               @relation("CreatedEvents", fields: [creatorId], references: [id])
+  participants     EventParticipant[]
 
-  createdAt DateTime @default(now())
+  createdAt        DateTime           @default(now())
 }
 
 model UserInterest {
@@ -72,4 +76,29 @@ model Friendship {
 
   status    String // "pending", "accepted"
   createdAt DateTime @default(now())
+}
+
+model EventParticipant {
+  id      Int    @id @default(autoincrement())
+  userId  Int
+  eventId Int
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, eventId]) // użytkownik może dołączyć tylko raz do danego eventu
+}
+
+model EventParticipant {
+  id        Int    @id @default(autoincrement())
+  userId    Int
+  eventId   Int
+  joinedAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
 }
