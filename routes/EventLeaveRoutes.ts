@@ -3,6 +3,6 @@ import { leaveEventController } from "../controllers/EventLeaveController";
 
 const router = express.Router();
 
-router.post("/leave", leaveEventController);
+router.post("/", leaveEventController);
 
 export default router;
