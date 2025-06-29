@@ -16,15 +16,19 @@ export const joinEvent = async (userId: number, eventId: number) => {
     throw new Error("Użytkownik już dołączył do wydarzenia.");
   }
 
-  // Sprawdź ilu jest uczestników i ile miejsc
+  // Sprawdź czy wydarzenie istnieje
   const event = await prisma.event.findUnique({
     where: { id: eventId },
-    include: { participants: true },
   });
 
   if (!event) throw new Error("Nie znaleziono wydarzenia.");
 
-  if (event.participants.length >= event.maxParticipants) {
+  // Sprawdź ile osób już dołączyło
+  const participantCount = await prisma.eventParticipant.count({
+    where: { eventId },
+  });
+
+  if (participantCount >= event.maxParticipants) {
     throw new Error("Brak wolnych miejsc.");
   }
 

@@ -9,6 +9,7 @@ export const createEvent = async (data: {
   endDate: string;
   activity: string;
   creatorId: number;
+  spots: number;
 }) => {
   const result = await prisma.event.create({
     data: {
@@ -18,12 +19,10 @@ export const createEvent = async (data: {
       endDate: new Date(data.endDate),
       activity: data.activity,
       creatorId: data.creatorId,
+      maxParticipants: data.spots,
     },
-  });  
-  console.log("📝 Event zapisany:", result);  
-   return result
+  });
+
+  console.log("📝 Event zapisany:", result);
+  return result;
 };
-
-
-
-

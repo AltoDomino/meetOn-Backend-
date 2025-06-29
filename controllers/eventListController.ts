@@ -14,6 +14,7 @@ type FormattedEvent = {
   };
   spots: number;
   participantsCount: number;
+  isUserJoined: boolean;
 };
 
 export const getFilteredEvents = async (req: Request, res: Response) => {
@@ -30,20 +31,26 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
         where: { creatorId: userId },
         include: {
           creator: { select: { userName: true } },
-          participants: true,
         },
       });
 
-      const formatted: FormattedEvent[] = ownEvents.map(
-        (event: (typeof ownEvents)[number]) => ({
-          id: event.id,
-          activity: event.activity,
-          location: event.location,
-          startDate: event.startDate,
-          endDate: event.endDate,
-          creator: event.creator,
-          spots: event.maxParticipants,
-          participantsCount: event.participants.length,
+      const formatted: FormattedEvent[] = await Promise.all(
+        ownEvents.map(async (event) => {
+          const participants = await prisma.eventParticipant.findMany({
+            where: { eventId: event.id },
+          });
+
+          return {
+            id: event.id,
+            activity: event.activity,
+            location: event.location,
+            startDate: event.startDate,
+            endDate: event.endDate,
+            creator: event.creator,
+            spots: event.maxParticipants,
+            participantsCount: participants.length,
+            isUserJoined: true, // właściciel wydarzenia = zawsze dołączony
+          };
         })
       );
 
@@ -54,9 +61,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       where: { userId },
     });
 
-    const interestNames = interests.map(
-      (i: { activity: string }) => i.activity
-    );
+    const interestNames = interests.map((i) => i.activity);
 
     const matchingEvents = await prisma.event.findMany({
       where: {
@@ -65,20 +70,30 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       },
       include: {
         creator: { select: { userName: true } },
-        participants: true,
       },
     });
 
-    const formatted: FormattedEvent[] = matchingEvents.map(
-      (event: (typeof matchingEvents)[number]) => ({
-        id: event.id,
-        activity: event.activity,
-        location: event.location,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        creator: event.creator,
-        spots: event.maxParticipants,
-        participantsCount: event.participants.length,
+    const formatted: FormattedEvent[] = await Promise.all(
+      matchingEvents.map(async (event) => {
+        const participants = await prisma.eventParticipant.findMany({
+          where: { eventId: event.id },
+        });
+
+        const isJoined = await prisma.eventParticipant.findFirst({
+          where: { userId, eventId: event.id },
+        });
+
+        return {
+          id: event.id,
+          activity: event.activity,
+          location: event.location,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          creator: event.creator,
+          spots: event.maxParticipants,
+          participantsCount: participants.length,
+          isUserJoined: Boolean(isJoined),
+        };
       })
     );
 
