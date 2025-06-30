@@ -1,18 +1,21 @@
+// controllers/UserInterest.ts
+
 import { Request, Response } from "express";
-import { saveUserInterests, getUserInterests } from "../services/UserInterest"
+import { saveUserInterests, getUserInterests } from "../services/UserInterest";
 
 export const saveInterestsController = async (req: Request, res: Response) => {
-  const { userId, activities } = req.body;
+  const userId = Number(req.params.userId);
+  const { interests } = req.body;
 
-  if (!userId || !Array.isArray(activities)) {
+  if (!userId || !Array.isArray(interests)) {
     return res.status(400).json({ error: "Brakuje danych wejściowych" });
   }
 
   try {
-    await saveUserInterests(userId, activities);
+    await saveUserInterests(userId, interests);
     return res.status(200).json({ message: "Zainteresowania zapisane" });
   } catch (error) {
-    console.error("Błąd zapisu zainteresowań:", error);
+    console.error("❌ Błąd zapisu zainteresowań:", error);
     return res.status(500).json({ error: "Wewnętrzny błąd serwera" });
   }
 };

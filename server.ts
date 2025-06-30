@@ -10,7 +10,7 @@ import notificationRoutes from "./routes/notificationRoutes";
 import pushTokenRoutes from "./routes/pushTokenRoutes";
 import tokentest from "./routes/tokentest";
 import eventListRoutes from "./routes/eventListRoutes";
-import EventRoutes from "./routes/EventRoutes"; // Główne endpointy wydarzeń
+import EventRoutes from "./routes/EventRoutes";
 import InviteFriends from "./routes/InviteFriends";
 import EventJoinRoutes from "./routes/EventJoinRoutes";
 import EventLeaveRoutes from "./routes/EventLeaveRoutes";
@@ -23,7 +23,7 @@ app.use(cors());
 
 const PORT = process.env.PORT;
 
-// Logger (opcjonalny)
+// Logger
 const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   console.log(`${req.method} ${req.url}`);
   if (Object.keys(req.body).length) console.log("Body:", req.body);
@@ -40,15 +40,21 @@ app.use("/api/push-token", pushTokenRoutes);
 app.use("/api/test-push", tokentest);
 app.use("/api/invite-friends", InviteFriends);
 
-// Wydarzenia
-app.use("/api/events", eventListRoutes); // np. GET /api/events?userId=1&ownOnly=false
-app.use("/api/event", EventRoutes)    // np. GET /api/events/:id/details, POST, DELETE
-
+app.use("/api/events", eventListRoutes); // GET /api/events?userId=1
+app.use("/api/event", EventRoutes);      // GET /api/event/joined
 app.use("/api/join", EventJoinRoutes);
 app.use("/api/leave", EventLeaveRoutes);
 
-// app.use(serverErrorHandler); // middleware błędów (opcjonalnie)
-// app.use(notFoundHandler);    // middleware 404 (opcjonalnie)
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: "Nie znaleziono endpointu" });
+});
+
+// Error handler
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error("❌ Błąd serwera:", err.message);
+  res.status(500).json({ error: "Błąd serwera" });
+});
 
 app.listen(PORT, () => {
   console.log(`🚀 Serwer działa na porcie ${PORT}`);

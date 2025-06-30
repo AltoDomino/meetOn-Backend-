@@ -1,22 +1,24 @@
-// // scripts/clearData.ts
-// import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
-// const prisma = new PrismaClient();
+const prisma = new PrismaClient();
 
-// async function clearData() {
-//   try {
-//     await prisma.notification.deleteMany();
-//     await prisma.pushToken.deleteMany();
-//     await prisma.userInterest.deleteMany();
-//     await prisma.event.deleteMany();
-//     await prisma.user.deleteMany();
+async function clearDatabase() {
+  console.log("🧹 Czyszczenie bazy danych...");
 
-//     console.log('✅ Wszystkie dane zostały usunięte.');
-//   } catch (error) {
-//     console.error('❌ Błąd usuwania danych:', error);
-//   } finally {
-//     await prisma.$disconnect();
-//   }
-// }
+await prisma.eventParticipant.deleteMany();
+await prisma.event.deleteMany();
+await prisma.userInterest.deleteMany();
+await prisma.pushToken.deleteMany();
+await prisma.notification.deleteMany();
+await prisma.friendship.deleteMany();
+await prisma.user.deleteMany();
 
-// clearData();
+
+  console.log("✅ Baza danych została wyczyszczona");
+  await prisma.$disconnect();
+}
+
+clearDatabase().catch((err) => {
+  console.error("❌ Błąd czyszczenia:", err);
+  prisma.$disconnect();
+});

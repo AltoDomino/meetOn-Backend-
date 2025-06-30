@@ -15,6 +15,7 @@ type FormattedEvent = {
   spots: number;
   participantsCount: number;
   isUserJoined: boolean;
+  isCreator: boolean; // ⬅️ Dodane
 };
 
 export const getFilteredEvents = async (req: Request, res: Response) => {
@@ -26,6 +27,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
   }
 
   try {
+    // 🔹 Wydarzenia stworzone przez użytkownika
     if (ownOnly) {
       const ownEvents = await prisma.event.findMany({
         where: { creatorId: userId },
@@ -49,7 +51,8 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
             creator: event.creator,
             spots: event.maxParticipants,
             participantsCount: participants.length,
-            isUserJoined: true, // właściciel wydarzenia = zawsze dołączony
+            isUserJoined: true,
+            isCreator: true,
           };
         })
       );
@@ -57,12 +60,14 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       return res.json(formatted);
     }
 
+    // 🔹 Pobierz zainteresowania użytkownika
     const interests = await prisma.userInterest.findMany({
       where: { userId },
     });
 
     const interestNames = interests.map((i) => i.activity);
 
+    // 🔹 Pobierz wydarzenia zgodne z zainteresowaniami
     const matchingEvents = await prisma.event.findMany({
       where: {
         activity: { in: interestNames },
@@ -73,31 +78,54 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       },
     });
 
-    const formatted: FormattedEvent[] = await Promise.all(
-      matchingEvents.map(async (event) => {
-        const participants = await prisma.eventParticipant.findMany({
-          where: { eventId: event.id },
-        });
+    // 🔹 Pobierz wydarzenia, do których user dołączył
+    const joinedEventLinks = await prisma.eventParticipant.findMany({
+      where: { userId },
+    });
 
-        const isJoined = await prisma.eventParticipant.findFirst({
-          where: { userId, eventId: event.id },
-        });
+    const joinedEventIds = joinedEventLinks.map((ep) => ep.eventId);
 
-        return {
-          id: event.id,
-          activity: event.activity,
-          location: event.location,
-          startDate: event.startDate,
-          endDate: event.endDate,
-          creator: event.creator,
-          spots: event.maxParticipants,
-          participantsCount: participants.length,
-          isUserJoined: Boolean(isJoined),
-        };
-      })
+    const joinedEvents = await prisma.event.findMany({
+      where: {
+        id: { in: joinedEventIds },
+        creatorId: { not: userId },
+      },
+      include: {
+        creator: { select: { userName: true } },
+      },
+    });
+
+    // 🔹 Połącz wydarzenia: zainteresowania + dołączone (bez duplikatów)
+    const eventMap = new Map<number, FormattedEvent>();
+
+    const processEvent = async (event: any, isJoined: boolean) => {
+      const participants = await prisma.eventParticipant.findMany({
+        where: { eventId: event.id },
+      });
+
+      eventMap.set(event.id, {
+        id: event.id,
+        activity: event.activity,
+        location: event.location,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        creator: event.creator,
+        spots: event.maxParticipants,
+        participantsCount: participants.length,
+        isUserJoined: isJoined,
+        isCreator: false,
+      });
+    };
+
+    await Promise.all(
+      matchingEvents.map((event) => processEvent(event, false))
     );
 
-    formatted.sort(
+    await Promise.all(
+      joinedEvents.map((event) => processEvent(event, true))
+    );
+
+    const formatted = Array.from(eventMap.values()).sort(
       (a, b) =>
         new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
     );
