@@ -2,7 +2,12 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const register = async (userName: string, email: string, password: string) => {
+export const register = async (
+  userName: string,
+  email: string,
+  password: string,
+  gender: string
+) => {
   const existingUser = await prisma.user.findUnique({ where: { email } });
 
   if (existingUser) {
@@ -14,6 +19,7 @@ export const register = async (userName: string, email: string, password: string
       userName,
       email,
       password,
+      gender, // dodajemy tu gender
     },
   });
 

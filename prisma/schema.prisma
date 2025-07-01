@@ -13,24 +13,15 @@ model User {
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
+  gender    String?  // Dodane pole - płeć użytkownika
 
-  // Wydarzenia utworzone przez użytkownika
-  eventsCreated Event[] @relation("EventCreator")
-
-  // Zainteresowania użytkownika
-  userInterests UserInterest[]
-
-  // Token do powiadomień push
-  pushToken PushToken?
-
-  // Znajomi i zaproszenia
-  sentRequests     Friendship[] @relation("Requester")
-  receivedRequests Friendship[] @relation("Recipient")
-
-  // Powiadomienia
-  Notification Notification[]
-
-  // Uczestnictwo w wydarzeniach
+  // Relacje
+  eventsCreated     Event[]         @relation("EventCreator")
+  userInterests     UserInterest[]
+  pushToken         PushToken?
+  sentRequests      Friendship[]    @relation("Requester")
+  receivedRequests  Friendship[]    @relation("Recipient")
+  Notification      Notification[]
   participatedEvents EventParticipant[]
 }
 
@@ -42,13 +33,12 @@ model Event {
   endDate         DateTime
   activity        String
   maxParticipants Int
+  genderBalance   Boolean?          // Dodane pole - czy równość płci jest wymagana
   createdAt       DateTime @default(now())
 
-  // Twórca wydarzenia
-  creatorId Int
-  creator   User @relation("EventCreator", fields: [creatorId], references: [id])
-
-  // Uczestnicy (przez tabelę pośrednią)
+  // Relacje
+  creatorId        Int
+  creator          User             @relation("EventCreator", fields: [creatorId], references: [id])
   eventParticipants EventParticipant[]
 }
 
@@ -61,7 +51,7 @@ model EventParticipant {
   user  User  @relation(fields: [userId], references: [id])
   event Event @relation(fields: [eventId], references: [id])
 
-  @@unique([userId, eventId]) // użytkownik może dołączyć tylko raz do danego eventu
+  @@unique([userId, eventId])
 }
 
 model UserInterest {
@@ -94,7 +84,7 @@ model Friendship {
   id          Int      @id @default(autoincrement())
   requesterId Int
   recipientId Int
-  status      String // "pending", "accepted"
+  status      String
   createdAt   DateTime @default(now())
 
   requester User @relation("Requester", fields: [requesterId], references: [id])

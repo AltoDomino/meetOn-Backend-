@@ -1,3 +1,4 @@
+// --- getJoinedEventsController.ts ---
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 
@@ -9,68 +10,67 @@ export const getJoinedEventsController = async (req: Request, res: Response) => 
 
   try {
     const now = new Date();
-    console.log("🔍 Sprawdzam dołączone wydarzenia dla userId:", userId);
-    console.log("📅 Aktualna data:", now.toISOString());
 
+    // 1️⃣ Wydarzenia, do których dołączył jako uczestnik
     const joinedEvents = await prisma.eventParticipant.findMany({
       where: {
         userId,
         event: {
-          endDate: {
-            gt: now,
-          },
+          endDate: { gt: now },
         },
       },
       include: {
         event: {
           include: {
             creator: { select: { userName: true } },
+            eventParticipants: {
+              include: { user: { select: { gender: true } } },
+            },
           },
         },
       },
-      orderBy: {
-        event: {
-          startDate: "asc",
+    });
+
+    // 2️⃣ Wydarzenia, które sam stworzył (jako twórca)
+    const createdEvents = await prisma.event.findMany({
+      where: {
+        creatorId: userId,
+        endDate: { gt: now },
+      },
+      include: {
+        creator: { select: { userName: true } },
+        eventParticipants: {
+          include: { user: { select: { gender: true } } },
         },
       },
     });
 
-    console.log("📦 Liczba znalezionych aktywnych wydarzeń:", joinedEvents.length);
+    // 3️⃣ Mergowanie i mapowanie
+    const allEvents = [...joinedEvents.map(e => e.event), ...createdEvents];
 
-    joinedEvents.forEach((entry, i) => {
-      console.log(`🔸 [${i}] EventId: ${entry.event?.id}`);
-      console.log(`   ➤ Activity: ${entry.event?.activity}`);
-      console.log(`   ➤ EndDate: ${entry.event?.endDate}`);
+    const uniqueEventsMap = new Map();
+    allEvents.forEach((event) => {
+      uniqueEventsMap.set(event.id, {
+        id: event.id,
+        activity: event.activity,
+        location: event.location,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        creator: event.creator,
+        spots: event.maxParticipants,
+        participantsCount: event.eventParticipants.length,
+        isUserJoined: event.eventParticipants.some(p => p.userId === userId),
+        isCreator: event.creatorId === userId,
+      });
     });
 
-    if (joinedEvents.length === 0) {
-      console.log("📭 Brak aktywnych wydarzeń");
-      return res.json([]);
-    }
+    const result = Array.from(uniqueEventsMap.values());
 
-    const active = joinedEvents[0].event;
+    console.log("📦 Wynik /api/event/joined:", result);
 
-    const participantsCount = await prisma.eventParticipant.count({
-      where: { eventId: active.id },
-    });
-
-    const formatted = [{
-      id: active.id,
-      activity: active.activity,
-      location: active.location,
-      startDate: active.startDate,
-      endDate: active.endDate,
-      creator: active.creator,
-      spots: active.maxParticipants,
-      participantsCount,
-      isUserJoined: true,
-      isCreator: false,
-    }];
-
-    console.log("✅ Zwracam aktywne wydarzenie:", formatted[0]);
-    res.json(formatted);
+    res.json(result);
   } catch (err) {
-    console.error("❌ Błąd pobierania dołączonych wydarzeń:", err);
+    console.error("❌ Błąd pobierania wydarzeń:", err);
     res.status(500).json({ error: "Błąd serwera" });
   }
 };
