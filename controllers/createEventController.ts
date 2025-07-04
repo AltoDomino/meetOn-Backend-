@@ -6,20 +6,13 @@ const prisma = new PrismaClient();
 const expo = new Expo();
 
 export const createEventController = async (req: Request, res: Response) => {
-  const { location, address, startDate, endDate, activity, creatorId, spots } = req.body;
+  const { location, address, startDate, endDate, activity, creatorId, spots } =
+    req.body;
 
   try {
-    // 🧪 Logowanie do debugowania
-    console.log("📥 Otrzymano dane:", req.body);
-
-    // Konwersja dat
     const parsedStart = new Date(startDate);
     const parsedEnd = new Date(endDate);
     const now = new Date();
-
-    console.log("🕒 Parsed startDate:", parsedStart);
-    console.log("🕒 Parsed endDate:", parsedEnd);
-    console.log("🕒 Aktualna data:", now);
 
     // Walidacja dat
     if (isNaN(parsedStart.getTime()) || isNaN(parsedEnd.getTime())) {
@@ -27,11 +20,15 @@ export const createEventController = async (req: Request, res: Response) => {
     }
 
     if (parsedStart <= now) {
-      return res.status(400).json({ error: "Data rozpoczęcia musi być w przyszłości." });
+      return res
+        .status(400)
+        .json({ error: "Data rozpoczęcia musi być w przyszłości." });
     }
 
     if (parsedEnd <= parsedStart) {
-      return res.status(400).json({ error: "Data zakończenia musi być po rozpoczęciu." });
+      return res
+        .status(400)
+        .json({ error: "Data zakończenia musi być po rozpoczęciu." });
     }
 
     // Tworzenie wydarzenia
@@ -44,7 +41,21 @@ export const createEventController = async (req: Request, res: Response) => {
         activity,
         creatorId: Number(creatorId),
         maxParticipants: Number(spots),
+        genderBalance: req.body.genderSplit ?? false,
       },
+    });
+
+    // Pobranie danych twórcy wydarzenia
+    const creator = await prisma.user.findUnique({
+      where: { id: Number(creatorId) },
+      select: { userName: true },
+    });
+
+    const userName = creator?.userName ?? "Użytkownik";
+
+    // Liczba uczestników (bez twórcy)
+    const joinedCount = await prisma.eventParticipant.count({
+      where: { eventId: event.id },
     });
 
     // Znalezienie użytkowników zainteresowanych tą aktywnością (bez twórcy)
@@ -55,7 +66,7 @@ export const createEventController = async (req: Request, res: Response) => {
       },
     });
 
-    const userIds = interests.map(i => i.userId);
+    const userIds = interests.map((i) => i.userId);
 
     const tokens = await prisma.pushToken.findMany({
       where: {
@@ -63,19 +74,39 @@ export const createEventController = async (req: Request, res: Response) => {
       },
     });
 
+    const fullAddress = address || location || "nieokreślona lokalizacja";
+
     const messages = tokens
-      .filter(t => Expo.isExpoPushToken(t.token))
-      .map(t => ({
+      .filter((t) => Expo.isExpoPushToken(t.token))
+      .map((t) => ({
         to: t.token,
         sound: "default",
-        title: "Nowe wydarzenie!",
-        body: `Dodano wydarzenie z aktywnością: ${activity}`,
+        title: `${userName} zaprasza na ${activity}!`,
+        body: `📍 ${fullAddress}\n👥 Uczestnicy: ${joinedCount} / ${spots}`,
+        data: {
+          activity,
+          location,
+          address,
+          maxParticipants: spots,
+          creatorName: userName,
+        },
       }));
 
     const chunks = expo.chunkPushNotifications(messages);
     for (const chunk of chunks) {
       await expo.sendPushNotificationsAsync(chunk);
     }
+
+    await Promise.all(
+      userIds.map((userId) =>
+        prisma.notification.create({
+          data: {
+            userId,
+            message: `${userName} stworzył wydarzenie: ${activity}`,
+          },
+        })
+      )
+    );
 
     res.status(201).json(event);
   } catch (err) {

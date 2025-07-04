@@ -3,7 +3,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const getEventDetailsController = async (req: Request, res: Response) => {
+export const getEventDetailsController = async (
+  req: Request,
+  res: Response
+) => {
   const eventId = Number(req.params.id); // <- poprawione z "eventId" na "id"
 
   if (!eventId) {
@@ -28,7 +31,11 @@ export const getEventDetailsController = async (req: Request, res: Response) => 
       where: { eventId },
       include: {
         user: {
-          select: { id: true, userName: true },
+          select: {
+            id: true,
+            userName: true,
+            gender: true,
+          },
         },
       },
     });

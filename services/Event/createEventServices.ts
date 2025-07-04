@@ -10,6 +10,7 @@ export const createEvent = async (data: {
   activity: string;
   creatorId: number;
   spots: number;
+  genderBalance?: boolean; 
 }) => {
   const result = await prisma.event.create({
     data: {
@@ -20,6 +21,7 @@ export const createEvent = async (data: {
       activity: data.activity,
       creatorId: data.creatorId,
       maxParticipants: data.spots,
+      genderBalance: data.genderBalance ?? false, 
     },
   });
 

@@ -1,9 +1,11 @@
 import { PrismaClient } from "@prisma/client";
+import { Expo } from "expo-server-sdk";
 
 const prisma = new PrismaClient();
+const expo = new Expo();
 
 export const joinEvent = async (userId: number, eventId: number) => {
-  // Sprawdź, czy user już dołączył
+  // 1. Czy już dołączony?
   const alreadyJoined = await prisma.eventParticipant.findUnique({
     where: {
       userId_eventId: {
@@ -17,16 +19,12 @@ export const joinEvent = async (userId: number, eventId: number) => {
     throw new Error("Użytkownik już dołączył do wydarzenia.");
   }
 
-  // Pobierz wydarzenie wraz z uczestnikami i twórcą
+  // 2. Pobierz wydarzenie z uczestnikami i twórcą
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: {
-      creator: true,
-      eventParticipants: {
-        include: {
-          user: true,
-        },
-      },
+      creator: { select: { userName: true } },
+      eventParticipants: { include: { user: true } },
     },
   });
 
@@ -34,13 +32,15 @@ export const joinEvent = async (userId: number, eventId: number) => {
     throw new Error("Nie znaleziono wydarzenia.");
   }
 
-  // Sprawdź, czy nie przekroczono liczby uczestników
-  const currentCount = event.eventParticipants.length;
-  if (currentCount >= event.maxParticipants) {
-    throw new Error("Brak wolnych miejsc.");
+  const participants = event.eventParticipants;
+  const totalSpots = event.maxParticipants;
+  const currentCount = participants.length;
+
+  if (currentCount >= totalSpots) {
+    throw new Error("Brak miejsc w wydarzeniu.");
   }
 
-  // Pobierz użytkownika dołączającego
+  // 3. Sprawdzenie płci
   const joiningUser = await prisma.user.findUnique({
     where: { id: userId },
     select: { gender: true },
@@ -50,40 +50,76 @@ export const joinEvent = async (userId: number, eventId: number) => {
     throw new Error("Brak informacji o płci użytkownika.");
   }
 
-if (event.genderBalance) {
-  const participants = event.eventParticipants;
+  if (event.genderBalance) {
+    const males = participants.filter(
+      (p) => p.user?.gender === "male"
+    ).length;
+    const females = participants.filter(
+      (p) => p.user?.gender === "female"
+    ).length;
 
-  const males = participants.filter(p => p.user?.gender === "male").length;
-  const females = participants.filter(p => p.user?.gender === "female").length;
-  const total = participants.length;
-  const max = event.maxParticipants;
-  const half = Math.floor(max / 2);
+    const half = Math.floor(totalSpots / 2);
+    const isOdd = totalSpots % 2 === 1;
+    const allJoined = males + females;
 
-  console.log("👨 Mężczyzn:", males);
-  console.log("👩 Kobiet:", females);
-  console.log("👥 Razem:", total, "/", max);
-  console.log("🧍 Płeć dołączającego:", joiningUser.gender);
+    if (joiningUser.gender === "male") {
+      if (males >= half && !(isOdd && allJoined === totalSpots - 1)) {
+        throw new Error("Limit miejsc dla mężczyzn został osiągnięty.");
+      }
+    }
 
-  if (total >= max) {
-    throw new Error("Brak wolnych miejsc.");
+    if (joiningUser.gender === "female") {
+      if (females >= half && !(isOdd && allJoined === totalSpots - 1)) {
+        throw new Error("Limit miejsc dla kobiet został osiągnięty.");
+      }
+    }
   }
 
-  // Główna reguła dla równowagi płci
-  if (joiningUser.gender === "male" && males >= half && total < max - 1) {
-    throw new Error("Limit mężczyzn w tym wydarzeniu został osiągnięty.");
-  }
-
-  if (joiningUser.gender === "female" && females >= half && total < max - 1) {
-    throw new Error("Limit kobiet w tym wydarzeniu został osiągnięty.");
-  }
-
-  // Jeśli zostało tylko jedno miejsce – wpuszczamy każdego
-}
-
-  // Dołącz użytkownika do wydarzenia
+  // 4. Zapisanie uczestnika
   await prisma.eventParticipant.create({
     data: { userId, eventId },
   });
+
+  // 5. Liczba uczestników po dołączeniu
+  const joinedCount = await prisma.eventParticipant.count({
+    where: { eventId },
+  });
+
+  // 6. Powiadomienie dla zainteresowanych aktywnością
+  const interests = await prisma.userInterest.findMany({
+    where: {
+      activity: event.activity,
+      userId: { not: userId },
+    },
+  });
+
+  const userIds = interests.map((i) => i.userId);
+
+  const tokens = await prisma.pushToken.findMany({
+    where: {
+      userId: { in: userIds },
+    },
+  });
+
+  const fullAddress = event.address || event.location || "nieznana lokalizacja";
+
+  const messages = tokens
+    .filter((t) => Expo.isExpoPushToken(t.token))
+    .map((t) => ({
+      to: t.token,
+      sound: "default",
+      title: `👥 Nowy uczestnik w wydarzeniu: ${event.activity}`,
+      body: `📍 ${fullAddress}\nUczestników: ${joinedCount} / ${event.maxParticipants}`,
+      data: {
+        eventId: event.id,
+        activity: event.activity,
+      },
+    }));
+
+  const chunks = expo.chunkPushNotifications(messages);
+  for (const chunk of chunks) {
+    await expo.sendPushNotificationsAsync(chunk);
+  }
 
   return { message: "Dołączono do wydarzenia." };
 };

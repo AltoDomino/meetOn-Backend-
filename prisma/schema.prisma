@@ -14,6 +14,8 @@ model User {
   password  String
   createdAt DateTime @default(now())
   gender    String?  // Dodane pole - płeć użytkownika
+  avatarUrl String?
+
 
   // Relacje
   eventsCreated     Event[]         @relation("EventCreator")
@@ -33,7 +35,7 @@ model Event {
   endDate         DateTime
   activity        String
   maxParticipants Int
-  genderBalance   Boolean?          // Dodane pole - czy równość płci jest wymagana
+  genderBalance   Boolean @default(false)
   createdAt       DateTime @default(now())
 
   // Relacje

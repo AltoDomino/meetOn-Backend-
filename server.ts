@@ -14,6 +14,7 @@ import EventRoutes from "./routes/EventRoutes";
 import InviteFriends from "./routes/InviteFriends";
 import EventJoinRoutes from "./routes/EventJoinRoutes";
 import EventLeaveRoutes from "./routes/EventLeaveRoutes";
+import AvatarRoutes from "./routes/AvatarRoutes";
 
 dotenv.config({ path: "C:\\meetOn-Backend-\\.env" });
 
@@ -44,6 +45,9 @@ app.use("/api/events", eventListRoutes); // GET /api/events?userId=1
 app.use("/api/event", EventRoutes);      // GET /api/event/joined
 app.use("/api/join", EventJoinRoutes);
 app.use("/api/leave", EventLeaveRoutes);
+
+app.use("/uploads", express.static("uploads"));
+app.use("/api/avatar", AvatarRoutes)
 
 // 404 handler
 app.use((req, res) => {
