@@ -7,7 +7,7 @@ export const getEventDetailsController = async (
   req: Request,
   res: Response
 ) => {
-  const eventId = Number(req.params.id); // <- poprawione z "eventId" na "id"
+  const eventId = Number(req.params.id); 
 
   if (!eventId) {
     return res.status(400).json({ error: "Brak eventId w adresie URL" });
@@ -40,7 +40,7 @@ export const getEventDetailsController = async (
       },
     });
 
-    const participants = eventParticipants.map((ep) => ep.user);
+    const participants = eventParticipants.map((ep: { user: any; }) => ep.user);
 
     const formattedEvent = {
       id: event.id,

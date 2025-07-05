@@ -6,7 +6,7 @@ export const findUsersInterestedInActivity = async (activity: string, excludeUse
     where: {
       activity,
       userId: {
-        not: excludeUserId  // Nie powiadamiaj twórcy wydarzenia
+        not: excludeUserId  
       }
     },
     include: {

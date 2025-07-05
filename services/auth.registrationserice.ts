@@ -6,7 +6,8 @@ export const register = async (
   userName: string,
   email: string,
   password: string,
-  gender: string
+  gender: string,
+  age:number
 ) => {
   const existingUser = await prisma.user.findUnique({ where: { email } });
 
@@ -19,7 +20,8 @@ export const register = async (
       userName,
       email,
       password,
-      gender, // dodajemy tu gender
+      gender, 
+      age
     },
   });
 

@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 const expo = new Expo();
 
 export const leaveEvent = async (userId: number, eventId: number) => {
-  // 1. Sprawdź, czy użytkownik był zapisany
   const participation = await prisma.eventParticipant.findUnique({
     where: {
       userId_eventId: {

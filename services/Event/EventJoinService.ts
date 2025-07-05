@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 const expo = new Expo();
 
 export const joinEvent = async (userId: number, eventId: number) => {
-  // 1. Czy już dołączony?
   const alreadyJoined = await prisma.eventParticipant.findUnique({
     where: {
       userId_eventId: {
@@ -19,7 +18,6 @@ export const joinEvent = async (userId: number, eventId: number) => {
     throw new Error("Użytkownik już dołączył do wydarzenia.");
   }
 
-  // 2. Pobierz wydarzenie z uczestnikami i twórcą
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: {
@@ -40,22 +38,38 @@ export const joinEvent = async (userId: number, eventId: number) => {
     throw new Error("Brak miejsc w wydarzeniu.");
   }
 
-  // 3. Sprawdzenie płci
   const joiningUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { gender: true },
+    select: { gender: true, age: true },
   });
 
-  if (!joiningUser || !joiningUser.gender) {
+  if (!joiningUser) {
+    throw new Error("Nie znaleziono użytkownika.");
+  }
+
+  if (!joiningUser.gender) {
     throw new Error("Brak informacji o płci użytkownika.");
+  }
+
+  if (
+    event.minAge !== null &&
+    event.maxAge !== null &&
+    (joiningUser.age === null ||
+      joiningUser.age < event.minAge ||
+      joiningUser.age > event.maxAge)
+  ) {
+    throw new Error(
+      "Twój wiek nie mieści się w wymaganym zakresie wydarzenia."
+    );
   }
 
   if (event.genderBalance) {
     const males = participants.filter(
-      (p) => p.user?.gender === "male"
+      (p: (typeof participants)[number]) => p.user?.gender === "male"
     ).length;
+
     const females = participants.filter(
-      (p) => p.user?.gender === "female"
+      (p: (typeof participants)[number]) => p.user?.gender === "female"
     ).length;
 
     const half = Math.floor(totalSpots / 2);
@@ -75,17 +89,14 @@ export const joinEvent = async (userId: number, eventId: number) => {
     }
   }
 
-  // 4. Zapisanie uczestnika
   await prisma.eventParticipant.create({
     data: { userId, eventId },
   });
 
-  // 5. Liczba uczestników po dołączeniu
   const joinedCount = await prisma.eventParticipant.count({
     where: { eventId },
   });
 
-  // 6. Powiadomienie dla zainteresowanych aktywnością
   const interests = await prisma.userInterest.findMany({
     where: {
       activity: event.activity,
@@ -93,7 +104,7 @@ export const joinEvent = async (userId: number, eventId: number) => {
     },
   });
 
-  const userIds = interests.map((i) => i.userId);
+  const userIds = interests.map((i: { userId: any; }) => i.userId);
 
   const tokens = await prisma.pushToken.findMany({
     where: {
@@ -104,8 +115,8 @@ export const joinEvent = async (userId: number, eventId: number) => {
   const fullAddress = event.address || event.location || "nieznana lokalizacja";
 
   const messages = tokens
-    .filter((t) => Expo.isExpoPushToken(t.token))
-    .map((t) => ({
+    .filter((t: { token: unknown; }) => Expo.isExpoPushToken(t.token))
+    .map((t: { token: any; }) => ({
       to: t.token,
       sound: "default",
       title: `👥 Nowy uczestnik w wydarzeniu: ${event.activity}`,

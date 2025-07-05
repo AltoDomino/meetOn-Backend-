@@ -15,7 +15,7 @@ type FormattedEvent = {
   spots: number;
   participantsCount: number;
   isUserJoined: boolean;
-  isCreator: boolean; // ⬅️ Dodane
+  isCreator: boolean;
 };
 
 export const getFilteredEvents = async (req: Request, res: Response) => {
@@ -37,7 +37,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       });
 
       const formatted: FormattedEvent[] = await Promise.all(
-        ownEvents.map(async (event) => {
+        ownEvents.map(async (event: { id: any; activity: any; location: any; startDate: any; endDate: any; creator: any; maxParticipants: any; }) => {
           const participants = await prisma.eventParticipant.findMany({
             where: { eventId: event.id },
           });
@@ -60,18 +60,30 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       return res.json(formatted);
     }
 
+    // 🔹 Pobierz wiek użytkownika
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { age: true },
+    });
+
+    if (!user || user.age === null) {
+      return res.status(400).json({ error: "Brak informacji o wieku użytkownika." });
+    }
+
     // 🔹 Pobierz zainteresowania użytkownika
     const interests = await prisma.userInterest.findMany({
       where: { userId },
     });
 
-    const interestNames = interests.map((i) => i.activity);
+    const interestNames = interests.map((i: { activity: any; }) => i.activity);
 
-    // 🔹 Pobierz wydarzenia zgodne z zainteresowaniami
+    // 🔹 Pobierz wydarzenia zgodne z zainteresowaniami i wiekiem
     const matchingEvents = await prisma.event.findMany({
       where: {
         activity: { in: interestNames },
         creatorId: { not: userId },
+        minAge: { lte: user.age },
+        maxAge: { gte: user.age },
       },
       include: {
         creator: { select: { userName: true } },
@@ -83,7 +95,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       where: { userId },
     });
 
-    const joinedEventIds = joinedEventLinks.map((ep) => ep.eventId);
+    const joinedEventIds = joinedEventLinks.map((ep: { eventId: any; }) => ep.eventId);
 
     const joinedEvents = await prisma.event.findMany({
       where: {
@@ -118,11 +130,11 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
     };
 
     await Promise.all(
-      matchingEvents.map((event) => processEvent(event, false))
+      matchingEvents.map((event: any) => processEvent(event, false))
     );
 
     await Promise.all(
-      joinedEvents.map((event) => processEvent(event, true))
+      joinedEvents.map((event: any) => processEvent(event, true))
     );
 
     const formatted = Array.from(eventMap.values()).sort(

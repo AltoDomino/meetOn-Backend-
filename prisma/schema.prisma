@@ -15,6 +15,7 @@ model User {
   createdAt DateTime @default(now())
   gender    String?  // Dodane pole - płeć użytkownika
   avatarUrl String?
+  age       Int?
 
 
   // Relacje
@@ -35,14 +36,17 @@ model Event {
   endDate         DateTime
   activity        String
   maxParticipants Int
-  genderBalance   Boolean @default(false)
+  genderBalance   Boolean  @default(false)
   createdAt       DateTime @default(now())
+  minAge          Int?    
+  maxAge          Int?    
 
   // Relacje
-  creatorId        Int
-  creator          User             @relation("EventCreator", fields: [creatorId], references: [id])
+  creatorId         Int
+  creator           User             @relation("EventCreator", fields: [creatorId], references: [id])
   eventParticipants EventParticipant[]
 }
+
 
 model EventParticipant {
   id       Int      @id @default(autoincrement())

@@ -46,7 +46,7 @@ export const getJoinedEventsController = async (req: Request, res: Response) => 
     });
 
     // 3️⃣ Mergowanie i mapowanie
-    const allEvents = [...joinedEvents.map(e => e.event), ...createdEvents];
+    const allEvents = [...joinedEvents.map((e: { event: any; }) => e.event), ...createdEvents];
 
     const uniqueEventsMap = new Map();
     allEvents.forEach((event) => {
@@ -59,7 +59,7 @@ export const getJoinedEventsController = async (req: Request, res: Response) => 
         creator: event.creator,
         spots: event.maxParticipants,
         participantsCount: event.eventParticipants.length,
-        isUserJoined: event.eventParticipants.some(p => p.userId === userId),
+        isUserJoined: event.eventParticipants.some((p: { userId: number; }) => p.userId === userId),
         isCreator: event.creatorId === userId,
       });
     });

@@ -8,13 +8,13 @@ export const getRegister = async (
   next: NextFunction
 ) => {
   try {
-    const { userName, email, password, gender } = req.body;
+    const { userName, email, password, gender, age } = req.body;
 
-    if (!userName || !email || !password || !gender) {
+    if (!userName || !email || !password || !gender || !age) {
       return res.status(400).json({ message: "Wszystkie pola są wymagane." });
     }
 
-    const user = await register(userName, email, password, gender);
+    const user = await register(userName, email, password, gender,age);
     res.status(201).json({ message: "Użytkownik zarejestrowany", user });
   } catch (error) {
     next(error);
