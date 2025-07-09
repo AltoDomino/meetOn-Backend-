@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
   "dependencies": {
     "@prisma/client": "^6.11.1",
     "cors": "^2.8.5",
