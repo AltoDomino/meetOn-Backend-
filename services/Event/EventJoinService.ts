@@ -26,9 +26,7 @@ export const joinEvent = async (userId: number, eventId: number) => {
     },
   });
 
-  if (!event) {
-    throw new Error("Nie znaleziono wydarzenia.");
-  }
+  if (!event) throw new Error("Nie znaleziono wydarzenia.");
 
   const participants = event.eventParticipants;
   const totalSpots = event.maxParticipants;
@@ -40,16 +38,11 @@ export const joinEvent = async (userId: number, eventId: number) => {
 
   const joiningUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { gender: true, age: true },
+    select: { gender: true, age: true, userName: true }, // ⬅️ Dodano userName
   });
 
-  if (!joiningUser) {
-    throw new Error("Nie znaleziono użytkownika.");
-  }
-
-  if (!joiningUser.gender) {
-    throw new Error("Brak informacji o płci użytkownika.");
-  }
+  if (!joiningUser) throw new Error("Nie znaleziono użytkownika.");
+  if (!joiningUser.gender) throw new Error("Brak informacji o płci użytkownika.");
 
   if (
     event.minAge !== null &&
@@ -58,19 +51,12 @@ export const joinEvent = async (userId: number, eventId: number) => {
       joiningUser.age < event.minAge ||
       joiningUser.age > event.maxAge)
   ) {
-    throw new Error(
-      "Twój wiek nie mieści się w wymaganym zakresie wydarzenia."
-    );
+    throw new Error("Twój wiek nie mieści się w wymaganym zakresie wydarzenia.");
   }
 
   if (event.genderBalance) {
-    const males = participants.filter(
-      (p: (typeof participants)[number]) => p.user?.gender === "male"
-    ).length;
-
-    const females = participants.filter(
-      (p: (typeof participants)[number]) => p.user?.gender === "female"
-    ).length;
+    const males = participants.filter((p) => p.user?.gender === "male").length;
+    const females = participants.filter((p) => p.user?.gender === "female").length;
 
     const half = Math.floor(totalSpots / 2);
     const isOdd = totalSpots % 2 === 1;
@@ -104,7 +90,7 @@ export const joinEvent = async (userId: number, eventId: number) => {
     },
   });
 
-  const userIds = interests.map((i: { userId: any; }) => i.userId);
+  const userIds = interests.map((i) => i.userId);
 
   const tokens = await prisma.pushToken.findMany({
     where: {
@@ -115,11 +101,11 @@ export const joinEvent = async (userId: number, eventId: number) => {
   const fullAddress = event.address || event.location || "nieznana lokalizacja";
 
   const messages = tokens
-    .filter((t: { token: unknown; }) => Expo.isExpoPushToken(t.token))
-    .map((t: { token: any; }) => ({
+    .filter((t) => Expo.isExpoPushToken(t.token))
+    .map((t) => ({
       to: t.token,
       sound: "default",
-      title: `👥 Nowy uczestnik w wydarzeniu: ${event.activity}`,
+      title: `👤 ${joiningUser.userName} dołączył/a do wydarzenia: ${event.activity}`,
       body: `📍 ${fullAddress}\nUczestników: ${joinedCount} / ${event.maxParticipants}`,
       data: {
         eventId: event.id,

@@ -7,7 +7,7 @@ export const getEventDetailsController = async (
   req: Request,
   res: Response
 ) => {
-  const eventId = Number(req.params.id); 
+  const eventId = Number(req.params.id);
 
   if (!eventId) {
     return res.status(400).json({ error: "Brak eventId w adresie URL" });
@@ -34,13 +34,20 @@ export const getEventDetailsController = async (
           select: {
             id: true,
             userName: true,
-            gender: true,
+            avatarUrl: true,
+            description: true,
           },
         },
       },
     });
 
-    const participants = eventParticipants.map((ep: { user: any; }) => ep.user);
+    // 🔄 Mapa uczestników na podstawie relacji user
+    const participants = eventParticipants.map((ep) => ({
+      id: ep.user.id,
+      userName: ep.user.userName,
+      avatar: ep.user.avatarUrl,
+      description: ep.user.description,
+    }));
 
     const formattedEvent = {
       id: event.id,

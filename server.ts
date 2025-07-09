@@ -1,6 +1,9 @@
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import http from "http";
+import { initSocket, io } from "./socket"; // 👈 socket init
+import type { Socket } from "socket.io";
 
 // ROUTES
 import registerRouter from "./routes/auth.registrationRoutes";
@@ -15,14 +18,17 @@ import InviteFriends from "./routes/InviteFriends";
 import EventJoinRoutes from "./routes/EventJoinRoutes";
 import EventLeaveRoutes from "./routes/EventLeaveRoutes";
 import AvatarRoutes from "./routes/AvatarRoutes";
+import settingsRoutes from "./routes/auth.settingsRoutes";
 
 dotenv.config({ path: "C:\\meetOn-Backend-\\.env" });
 
 const app = express();
+const server = http.createServer(app); // potrzebne do socket.io
+initSocket(server); // 👈 uruchamiamy socket.io
+
+// Middleware
 app.use(express.json());
 app.use(cors());
-
-const PORT = process.env.PORT;
 
 // Logger
 const requestLogger = (req: Request, res: Response, next: NextFunction) => {
@@ -40,14 +46,13 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/push-token", pushTokenRoutes);
 app.use("/api/test-push", tokentest);
 app.use("/api/invite-friends", InviteFriends);
-
-app.use("/api/events", eventListRoutes); // GET /api/events?userId=1
-app.use("/api/event", EventRoutes);      // GET /api/event/joined
+app.use("/api/events", eventListRoutes);
+app.use("/api/event", EventRoutes);
 app.use("/api/join", EventJoinRoutes);
 app.use("/api/leave", EventLeaveRoutes);
-
 app.use("/uploads", express.static("uploads"));
-app.use("/api/avatar", AvatarRoutes)
+app.use("/api/avatar", AvatarRoutes);
+app.use("/api/user", settingsRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -60,6 +65,37 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ error: "Błąd serwera" });
 });
 
-app.listen(PORT, () => {
+// SOCKET.IO event handlers
+io.on("connection", (socket: Socket) => {
+  console.log(`✅ Użytkownik połączony: ${socket.id}`);
+
+  socket.on("joinRoom", (eventId: string) => {
+    socket.join(eventId);
+    console.log(`➡️ Dołączono do pokoju: ${eventId}`);
+  });
+
+  socket.on("sendMessage", ({ eventId, content, sender }) => {
+    const message = {
+      sender,
+      content,
+      timestamp: new Date().toISOString(),
+    };
+    io.to(eventId).emit("message", message);
+    console.log(`💬 Wiadomość od ${sender} w ${eventId}: ${content}`);
+  });
+
+  socket.on("leaveRoom", (eventId: string) => {
+    socket.leave(eventId);
+    console.log(`⬅️ Opuścił pokój: ${eventId}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`❌ Rozłączono: ${socket.id}`);
+  });
+});
+
+// Start server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
   console.log(`🚀 Serwer działa na porcie ${PORT}`);
 });

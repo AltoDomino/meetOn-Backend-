@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { joinEvent } from "../services/Event/EventJoinService";
+import { io } from "../socket";
 
 export const joinEventController = async (req: Request, res: Response) => {
   const { userId, eventId } = req.body;
@@ -10,6 +11,10 @@ export const joinEventController = async (req: Request, res: Response) => {
 
   try {
     const result = await joinEvent(Number(userId), Number(eventId));
+
+    // Emituj aktualizację do wszystkich w pokoju wydarzenia
+    io.to(eventId.toString()).emit("participantJoined", { userId, eventId });
+
     res.status(201).json(result);
   } catch (error: any) {
     console.error("❌ Błąd dołączania do wydarzenia:", error);
