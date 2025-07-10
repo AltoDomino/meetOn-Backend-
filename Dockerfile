@@ -7,7 +7,6 @@ COPY package.json package-lock.json ./
 RUN npm install
 
 COPY . .
-
 RUN npm run build
 
 # Etap 2: Produkcyjny obraz
@@ -21,5 +20,7 @@ RUN npm install --only=production
 COPY --from=builder /app/dist ./dist
 COPY prisma ./prisma
 
-# Uruchomienie migracji i serwera
+EXPOSE 3000
+
+# ✅ WAŻNE: render ustawi PORT, którego musisz użyć w server.js
 CMD npx prisma generate && node dist/server.js
