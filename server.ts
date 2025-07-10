@@ -2,10 +2,9 @@ import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
-import { initSocket, io } from "./socket"; // 👈 socket init
+import { initSocket, io } from "./socket";
 import type { Socket } from "socket.io";
 
-// ROUTES
 import registerRouter from "./routes/auth.registrationRoutes";
 import loginRouter from "./routes/auth.loginRoutes";
 import userInterestRoutes from "./routes/UserInterest";
@@ -20,10 +19,7 @@ import EventLeaveRoutes from "./routes/EventLeaveRoutes";
 import AvatarRoutes from "./routes/AvatarRoutes";
 import settingsRoutes from "./routes/auth.settingsRoutes";
 
-if (process.env.NODE_ENV !== "production") {
-  dotenv.config(); 
-}
-
+dotenv.config();
 
 const app = express();
 const server = http.createServer(app); // potrzebne do socket.io
