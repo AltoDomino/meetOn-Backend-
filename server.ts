@@ -20,7 +20,10 @@ import EventLeaveRoutes from "./routes/EventLeaveRoutes";
 import AvatarRoutes from "./routes/AvatarRoutes";
 import settingsRoutes from "./routes/auth.settingsRoutes";
 
-dotenv.config({ path: "C:\\meetOn-Backend-\\.env" });
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config(); 
+}
+
 
 const app = express();
 const server = http.createServer(app); // potrzebne do socket.io
@@ -98,4 +101,9 @@ io.on("connection", (socket: Socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`🚀 Serwer działa na porcie ${PORT}`);
+});
+
+app.post("/api/test", (req, res) => {
+  console.log("💥 TESTOWA TRASA działa", req.body);
+  res.status(200).json({ success: true });
 });

@@ -23,4 +23,7 @@ COPY prisma ./prisma
 EXPOSE 3000
 
 # ✅ WAŻNE: render ustawi PORT, którego musisz użyć w server.js
-CMD npx prisma generate && node dist/server.js
+ENV NODE_ENV=production
+
+CMD ["sh", "-c", "npx prisma generate && node dist/server.js"]
+
