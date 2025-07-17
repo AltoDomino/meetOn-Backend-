@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  userName  String   @unique
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  gender    String?  // Dodane pole - płeć użytkownika
+  avatarUrl String?
+  age       Int?
+  description String?
+  isVerified         Boolean  @default(false)
+  verificationToken  String?
+  verificationExpires DateTime?
+
+  // Relacje
+  eventsCreated     Event[]         @relation("EventCreator")
+  userInterests     UserInterest[]
+  pushToken         PushToken?
+  sentRequests      Friendship[]    @relation("Requester")
+  receivedRequests  Friendship[]    @relation("Recipient")
+  Notification      Notification[]
+  participatedEvents EventParticipant[]
+}
+
+model Event {
+  id              Int      @id @default(autoincrement())
+  location        String
+  address         String
+  startDate       DateTime
+  endDate         DateTime
+  activity        String
+  maxParticipants Int
+  genderBalance   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  minAge          Int?    
+  maxAge          Int?    
+
+  // Relacje
+  creatorId         Int
+  creator           User             @relation("EventCreator", fields: [creatorId], references: [id])
+  eventParticipants EventParticipant[]
+}
+
+
+model EventParticipant {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  eventId  Int
+  joinedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+}
+
+model UserInterest {
+  id       Int    @id @default(autoincrement())
+  userId   Int
+  activity String
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model PushToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  token     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  message   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Friendship {
+  id          Int      @id @default(autoincrement())
+  requesterId Int
+  recipientId Int
+  status      String
+  createdAt   DateTime @default(now())
+
+  requester User @relation("Requester", fields: [requesterId], references: [id])
+  recipient User @relation("Recipient", fields: [recipientId], references: [id])
+}
