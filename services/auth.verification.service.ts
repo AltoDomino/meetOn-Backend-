@@ -7,14 +7,20 @@ export const sendVerificationEmail = async (email: string, token: string) => {
   const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: Number(process.env.EMAIL_PORT),
-    secure: false, // false dla portu 587
+    secure: false,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
   });
 
-  const backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
+  const backendUrl = process.env.BACKEND_URL || "http://localhost:5000"
+  
+  if (!backendUrl) {
+    console.error("❌ BACKEND_URL nie jest ustawione!");
+    throw new Error("Brak BACKEND_URL w zmiennych środowiskowych");
+  }
+
   const link = `${backendUrl}/api/verification/verify-email?token=${token}`;
 
   await transporter.sendMail({
