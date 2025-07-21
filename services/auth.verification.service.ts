@@ -14,8 +14,8 @@ export const sendVerificationEmail = async (email: string, token: string) => {
     },
   });
 
-  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-  const link = `${frontendUrl}/api/verification?token=${token}`;
+  const backendUrl = process.env.BACKEND_URL || "http://localhost:5000";
+  const link = `${backendUrl}/api/verification/verify-email?token=${token}`;
 
   await transporter.sendMail({
     from: `"meetOn" <${process.env.FROM_EMAIL}>`,
