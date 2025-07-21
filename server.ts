@@ -6,7 +6,7 @@ import { initSocket, io } from "./socket";
 import type { Socket } from "socket.io";
 
 import registerRouter from "./routes/auth.registrationRoutes";
-import emailVerificationRoutes from "./routes/auth.registrationRoutes";
+import emailVerificationRoutes from "./routes/auth.verificationRoutes";
 import loginRouter from "./routes/auth.loginRoutes";
 import userInterestRoutes from "./routes/UserInterest";
 import notificationRoutes from "./routes/notificationRoutes";
