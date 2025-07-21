@@ -14,7 +14,7 @@ export const sendVerificationEmail = async (email: string, token: string) => {
     },
   });
 
-  const backendUrl = process.env.BACKEND_URL || "http://localhost:5000"
+  const backendUrl = process.env.BACKEND_URL 
   
   if (!backendUrl) {
     console.error("❌ BACKEND_URL nie jest ustawione!");
