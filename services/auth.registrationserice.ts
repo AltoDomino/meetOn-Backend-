@@ -5,21 +5,32 @@ import { sendVerificationEmail } from "./auth.verification.service";
 
 const prisma = new PrismaClient();
 
-export const registerUser = async ({ userName, email, password, gender, dateOfBirth, age }) => {
-  // Sprawdź czy użytkownik już istnieje
+interface RegisterUserParams {
+  userName: string;
+  email: string;
+  password: string;
+  gender: string;
+  dateOfBirth: string;
+  age: number;
+}
+
+export const registerUser = async ({
+  userName,
+  email,
+  password,
+  gender,
+  dateOfBirth,
+  age,
+}: RegisterUserParams) => {
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
     throw new Error("Użytkownik z tym adresem e-mail już istnieje.");
   }
 
-  // Haszowanie hasła
   const hashedPassword = await bcrypt.hash(password, 10);
-
-  // Generowanie tokenu weryfikacyjnego
   const verificationToken = nanoid(32);
-  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); 
+  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
-  // Zapis do bazy
   const user = await prisma.user.create({
     data: {
       userName,
@@ -34,8 +45,9 @@ export const registerUser = async ({ userName, email, password, gender, dateOfBi
     },
   });
 
-  // Wysyłka maila weryfikacyjnego
   await sendVerificationEmail(user.email, verificationToken);
 
-  return { message: "Użytkownik został zarejestrowany. Sprawdź e-mail w celu weryfikacji." };
+  return {
+    message: "Użytkownik został zarejestrowany. Sprawdź e-mail w celu weryfikacji.",
+  };
 };

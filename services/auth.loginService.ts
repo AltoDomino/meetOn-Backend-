@@ -16,5 +16,5 @@ export const login = async (email: string, password: string) => {
 
   if (!isValid) return null;
 
-  return { id: user.id, email: user.email, userName: user.userName };
+  return { id: user.id, email: user.email, userName: user.userName, isVerified: user.isVerified };
 };

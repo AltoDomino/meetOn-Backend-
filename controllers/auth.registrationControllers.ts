@@ -1,6 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { register } from "../services/auth.registrationserice";
-import { sendVerificationEmail } from "../services/auth.verification.service";
+import { registerUser } from "../services/auth.registrationserice";
 
 export const getRegister = async (
   req: Request,
@@ -8,20 +7,22 @@ export const getRegister = async (
   next: NextFunction
 ) => {
   try {
-    const { userName, email, password, gender, age } = req.body;
+    const { userName, email, password, gender, dateOfBirth, age } = req.body;
 
-    if (!userName || !email || !password || !gender || !age) {
+    if (!userName || !email || !password || !gender || !dateOfBirth || !age) {
       return res.status(400).json({ message: "Wszystkie pola są wymagane." });
     }
 
-    // Rejestracja użytkownika
-    const user = await register(userName, email, password, gender, age);
-
-   await sendVerificationEmail(email, user.id.toString());
-
-    res.status(201).json({
-      message: "Użytkownik zarejestrowany. Sprawdź e-mail, aby zweryfikować konto.",
+    const response = await registerUser({
+      userName,
+      email,
+      password,
+      gender,
+      dateOfBirth,
+      age,
     });
+
+    res.status(201).json(response);
   } catch (error) {
     next(error);
   }
