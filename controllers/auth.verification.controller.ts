@@ -1,15 +1,8 @@
-import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const verifyEmail = async (req: Request, res: Response) => {
-  const { token } = req.query;
-
-  if (!token || typeof token !== "string") {
-    return res.status(400).json({ error: "Brak tokenu weryfikacyjnego." });
-  }
-
+export const verifyEmail = async (token: string) => {
   const user = await prisma.user.findFirst({
     where: {
       verificationToken: token,
@@ -18,7 +11,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
   });
 
   if (!user) {
-    return res.status(400).json({ error: "Token jest nieprawidłowy lub wygasł." });
+    throw new Error("Token jest nieprawidłowy lub wygasł.");
   }
 
   await prisma.user.update({
@@ -30,5 +23,5 @@ export const verifyEmail = async (req: Request, res: Response) => {
     },
   });
 
-  return res.status(200).json({ message: "E-mail został zweryfikowany!" });
+  return { message: "E-mail został zweryfikowany!" };
 };

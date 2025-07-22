@@ -1,44 +1,41 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs"; // ✅ POPRAWNY IMPORT dla bcryptjs
-import { v4 as uuidv4 } from "uuid";
+import bcrypt from "bcryptjs";
+import { nanoid } from "nanoid";
+import { sendVerificationEmail } from "./auth.verification.service";
 
 const prisma = new PrismaClient();
 
-export const register = async (
-  userName: string,
-  email: string,
-  password: string,
-  gender: string,
-  age: number
-) => {
+export const registerUser = async ({ userName, email, password, gender, dateOfBirth, age }) => {
+  // Sprawdź czy użytkownik już istnieje
   const existingUser = await prisma.user.findUnique({ where: { email } });
-
   if (existingUser) {
     throw new Error("Użytkownik z tym adresem e-mail już istnieje.");
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10); // ✅ bcryptjs działa tak samo jak bcrypt
+  // Haszowanie hasła
+  const hashedPassword = await bcrypt.hash(password, 10);
 
-  const verificationToken = uuidv4();
-  const verificationExpires = new Date(Date.now() + 1000 * 60 * 60); // 1h
+  // Generowanie tokenu weryfikacyjnego
+  const verificationToken = nanoid(32);
+  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); 
 
-  const newUser = await prisma.user.create({
+  // Zapis do bazy
+  const user = await prisma.user.create({
     data: {
       userName,
       email,
       password: hashedPassword,
       gender,
+      dateOfBirth,
       age,
-      isVerified: false,
       verificationToken,
       verificationExpires,
+      isVerified: false,
     },
   });
 
-  return {
-    id: newUser.id,
-    email: newUser.email,
-    userName: newUser.userName,
-    verificationToken,
-  };
+  // Wysyłka maila weryfikacyjnego
+  await sendVerificationEmail(user.email, verificationToken);
+
+  return { message: "Użytkownik został zarejestrowany. Sprawdź e-mail w celu weryfikacji." };
 };

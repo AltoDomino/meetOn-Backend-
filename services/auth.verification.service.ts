@@ -1,7 +1,4 @@
 import nodemailer from "nodemailer";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
 
 export const sendVerificationEmail = async (email: string, token: string) => {
   const transporter = nodemailer.createTransport({
@@ -14,10 +11,9 @@ export const sendVerificationEmail = async (email: string, token: string) => {
     },
   });
 
-  const backendUrl = process.env.BACKEND_URL 
-  
+  const backendUrl = process.env.BACKEND_URL?.trim();
+
   if (!backendUrl) {
-    console.error("❌ BACKEND_URL nie jest ustawione!");
     throw new Error("Brak BACKEND_URL w zmiennych środowiskowych");
   }
 
@@ -34,28 +30,4 @@ export const sendVerificationEmail = async (email: string, token: string) => {
       <p>Link wygaśnie za 24 godziny.</p>
     `,
   });
-};
-
-export const verifyUserByToken = async (token: string) => {
-  const user = await prisma.user.findFirst({
-    where: {
-      verificationToken: token,
-      verificationExpires: { gt: new Date() },
-    },
-  });
-
-  if (!user) {
-    throw new Error("Token jest nieprawidłowy lub wygasł.");
-  }
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      isVerified: true,
-      verificationToken: null,
-      verificationExpires: null,
-    },
-  });
-
-  return { message: "E-mail został zweryfikowany!" };
 };
