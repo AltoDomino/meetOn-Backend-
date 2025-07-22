@@ -8,6 +8,12 @@ export const verifyEmail = async (token: string) => {
       verificationToken: token,
       verificationExpires: { gt: new Date() },
     },
+    select: {
+      id: true,
+      email: true,
+      userName: true,
+      verificationExpires: true,
+    }
   });
 
   if (!user) {
