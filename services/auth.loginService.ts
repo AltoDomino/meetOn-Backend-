@@ -7,14 +7,22 @@ export const login = async (email: string, password: string) => {
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user) {
-    return null; // zamiast throw
+    return null; 
+  }
+
+  if (!user.isVerified) {
+    return { error: "NOT_VERIFIED" }; // możesz zwrócić specjalny komunikat
   }
 
   const isValid = await bcrypt.compare(password, user.password);
 
   if (!isValid) {
-    return null; // zamiast throw
+    return null; 
   }
 
-  return { id: user.id, email: user.email, userName: user.userName };
+  return {
+    id: user.id,
+    email: user.email,
+    userName: user.userName,
+  };
 };

@@ -15,8 +15,12 @@ export const getLogin = async (
       return res.status(401).json({ message: "Niepoprawny email lub hasło" });
     }
 
+    if (user.error === "NOT_VERIFIED") {
+      return res.status(403).json({ message: "Zweryfikuj e-mail przed zalogowaniem." });
+    }
+
     return res.status(200).json({
-      userId: user.id, // 👈 TU BYŁO BRAK
+      userId: user.id,
       userName: user.userName,
       email: user.email,
     });
