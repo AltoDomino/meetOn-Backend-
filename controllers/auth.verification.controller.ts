@@ -3,6 +3,10 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 export const verifyEmail = async (token: string) => {
+  if (!token || typeof token !== 'string') {
+    throw new Error("Token jest wymagany i musi być tekstem.");
+  }
+
   const user = await prisma.user.findFirst({
     where: {
       verificationToken: token,
