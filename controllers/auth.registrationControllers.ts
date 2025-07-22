@@ -9,11 +9,10 @@ export const getRegister = async (
   try {
     const { userName, email, password, gender, age } = req.body;
 
-    if (!userName || !email || !password || !gender || !age) {
-      return res.status(400).json({ message: "Wszystkie pola są wymagane." });
+    if (!userName || !email || !password) {
+      return res.status(400).json({ message: "userName, email i hasło są wymagane." });
     }
 
-    // Rejestracja użytkownika
     await registerUser({ userName, email, password, gender, age });
 
     res.status(201).json({
