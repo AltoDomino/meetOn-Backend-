@@ -21,6 +21,11 @@ export const verifyEmail = async (token: string) => {
       verificationToken: null,
       verificationExpires: null,
     },
+    select: {
+      id: true,
+      email: true,
+      userName: true,
+    }
   });
 
   return { message: "E-mail został zweryfikowany!" };
