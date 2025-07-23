@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import geolib from "geolib";
 
 const prisma = new PrismaClient();
 
@@ -21,9 +22,16 @@ type FormattedEvent = {
 export const getFilteredEvents = async (req: Request, res: Response) => {
   const userId = Number(req.query.userId);
   const ownOnly = req.query.ownOnly === "true";
+  const maxDistance = req.query.distance ? Number(req.query.distance) : null;
+  const userLat = Number(req.query.latitude);
+  const userLng = Number(req.query.longitude);
 
   if (!userId) {
     return res.status(400).json({ error: "Brak userId" });
+  }
+
+  if (maxDistance && (!userLat || !userLng)) {
+    return res.status(400).json({ error: "Brak współrzędnych użytkownika" });
   }
 
   try {
@@ -37,7 +45,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       });
 
       const formatted: FormattedEvent[] = await Promise.all(
-        ownEvents.map(async (event: { id: any; activity: any; location: any; startDate: any; endDate: any; creator: any; maxParticipants: any; }) => {
+        ownEvents.map(async (event) => {
           const participants = await prisma.eventParticipant.findMany({
             where: { eventId: event.id },
           });
@@ -60,7 +68,6 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       return res.json(formatted);
     }
 
-    // 🔹 Pobierz wiek użytkownika
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { age: true },
@@ -70,15 +77,13 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Brak informacji o wieku użytkownika." });
     }
 
-    // 🔹 Pobierz zainteresowania użytkownika
     const interests = await prisma.userInterest.findMany({
       where: { userId },
     });
 
-    const interestNames = interests.map((i: { activity: any; }) => i.activity);
+    const interestNames = interests.map((i) => i.activity);
 
-    // 🔹 Pobierz wydarzenia zgodne z zainteresowaniami i wiekiem
-    const matchingEvents = await prisma.event.findMany({
+    let matchingEvents = await prisma.event.findMany({
       where: {
         activity: { in: interestNames },
         creatorId: { not: userId },
@@ -90,12 +95,26 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       },
     });
 
-    // 🔹 Pobierz wydarzenia, do których user dołączył
+    // 🔹 Filtrowanie po dystansie
+    if (maxDistance && userLat && userLng) {
+      matchingEvents = matchingEvents.filter((event) => {
+        if (!event.latitude || !event.longitude) return false;
+
+        const distance = geolib.getDistance(
+          { latitude: userLat, longitude: userLng },
+          { latitude: event.latitude, longitude: event.longitude }
+        );
+
+        const distanceInKm = distance / 1000;
+        return distanceInKm <= maxDistance;
+      });
+    }
+
     const joinedEventLinks = await prisma.eventParticipant.findMany({
       where: { userId },
     });
 
-    const joinedEventIds = joinedEventLinks.map((ep: { eventId: any; }) => ep.eventId);
+    const joinedEventIds = joinedEventLinks.map((ep) => ep.eventId);
 
     const joinedEvents = await prisma.event.findMany({
       where: {
@@ -107,7 +126,6 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       },
     });
 
-    // 🔹 Połącz wydarzenia: zainteresowania + dołączone (bez duplikatów)
     const eventMap = new Map<number, FormattedEvent>();
 
     const processEvent = async (event: any, isJoined: boolean) => {
@@ -129,17 +147,11 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       });
     };
 
-    await Promise.all(
-      matchingEvents.map((event: any) => processEvent(event, false))
-    );
-
-    await Promise.all(
-      joinedEvents.map((event: any) => processEvent(event, true))
-    );
+    await Promise.all(matchingEvents.map((event) => processEvent(event, false)));
+    await Promise.all(joinedEvents.map((event) => processEvent(event, true)));
 
     const formatted = Array.from(eventMap.values()).sort(
-      (a, b) =>
-        new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+      (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
     );
 
     res.json(formatted);

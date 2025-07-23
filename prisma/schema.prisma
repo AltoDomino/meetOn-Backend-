@@ -42,7 +42,9 @@ model Event {
   genderBalance   Boolean  @default(false)
   createdAt       DateTime @default(now())
   minAge          Int?    
-  maxAge          Int?    
+  maxAge          Int?
+  latitude   Float
+  longitude  Float    
 
   // Relacje
   creatorId         Int
