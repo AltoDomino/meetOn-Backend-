@@ -43,8 +43,8 @@ model Event {
   createdAt       DateTime @default(now())
   minAge          Int?    
   maxAge          Int?
-  latitude   Float
-  longitude  Float    
+  latitude   Float?
+  longitude  Float?    
 
   // Relacje
   creatorId         Int
