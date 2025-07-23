@@ -20,6 +20,8 @@ type FormattedEvent = {
 };
 
 export const getFilteredEvents = async (req: Request, res: Response) => {
+  console.log("Received query params:", req.query);
+
   const userId = Number(req.query.userId);
   const ownOnly = req.query.ownOnly === "true";
   const maxDistance = req.query.distance ? Number(req.query.distance) : null;
@@ -35,7 +37,6 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
   }
 
   try {
-    // 🔹 Wydarzenia stworzone przez użytkownika
     if (ownOnly) {
       const ownEvents = await prisma.event.findMany({
         where: { creatorId: userId },
@@ -68,6 +69,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       return res.json(formatted);
     }
 
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { age: true },
@@ -95,10 +97,13 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       },
     });
 
-    // 🔹 Filtrowanie po dystansie
+
     if (maxDistance && userLat && userLng) {
       matchingEvents = matchingEvents.filter((event) => {
-        if (!event.latitude || !event.longitude) return false;
+        if (!event.latitude || !event.longitude) {
+          console.log(`Brak współrzędnych dla wydarzenia ${event.id}`);
+          return false;
+        }
 
         const distance = geolib.getDistance(
           { latitude: userLat, longitude: userLng },
@@ -106,9 +111,11 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
         );
 
         const distanceInKm = distance / 1000;
+        console.log(`Odległość między użytkownikiem a wydarzeniem ${event.id}: ${distanceInKm} km`);
         return distanceInKm <= maxDistance;
       });
     }
+
 
     const joinedEventLinks = await prisma.eventParticipant.findMany({
       where: { userId },
@@ -129,7 +136,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
     const eventMap = new Map<number, FormattedEvent>();
 
     const processEvent = async (event: any, isJoined: boolean) => {
-      const participants = await prisma.eventParticipant.findMany({
+      const participantsCount = await prisma.eventParticipant.count({
         where: { eventId: event.id },
       });
 
@@ -141,7 +148,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
         endDate: event.endDate,
         creator: event.creator,
         spots: event.maxParticipants,
-        participantsCount: participants.length,
+        participantsCount: participantsCount,
         isUserJoined: isJoined,
         isCreator: false,
       });
