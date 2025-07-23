@@ -17,6 +17,8 @@ export const createEventController = async (req: Request, res: Response) => {
     genderSplit,
     minAge,
     maxAge,
+    latitude,  // Nowy parametr
+    longitude, // Nowy parametr
   } = req.body;
 
   try {
@@ -36,6 +38,7 @@ export const createEventController = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Data zakończenia musi być po rozpoczęciu." });
     }
 
+    // Tworzenie wydarzenia z dodatkowymi współrzędnymi (latitude i longitude)
     const event = await prisma.event.create({
       data: {
         location,
@@ -48,6 +51,8 @@ export const createEventController = async (req: Request, res: Response) => {
         genderBalance: genderSplit ?? false,
         minAge: minAge ?? 0,
         maxAge: maxAge ?? 99,
+        latitude,  // Zapisujemy współrzędną szerokości geograficznej
+        longitude, // Zapisujemy współrzędną długości geograficznej
       },
     });
 
