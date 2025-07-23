@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
-import { sendVerificationEmail } from "./auth.verification.service";
+import { sendVerificationEmail } from "./auth.email.service";
 
 const prisma = new PrismaClient();
 
@@ -13,8 +13,9 @@ export const registerUser = async ({ userName, email, password, gender, age }) =
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
+
   const verificationToken = nanoid(32);
-  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); 
+  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
   const user = await prisma.user.create({
     data: {
@@ -29,11 +30,6 @@ export const registerUser = async ({ userName, email, password, gender, age }) =
       verificationExpires,
       isVerified: false,
     },
-    select: {
-      id: true,
-      email: true,
-      userName: true,
-    }
   });
 
   await sendVerificationEmail(user.email, verificationToken);

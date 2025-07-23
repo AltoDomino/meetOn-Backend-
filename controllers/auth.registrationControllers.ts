@@ -10,13 +10,16 @@ export const getRegister = async (
     const { userName, email, password, gender, age } = req.body;
 
     if (!userName || !email || !password) {
-      return res.status(400).json({ message: "userName, email i hasło są wymagane." });
+      return res
+        .status(400)
+        .json({ message: "userName, email i hasło są wymagane." });
     }
 
     await registerUser({ userName, email, password, gender, age });
 
     res.status(201).json({
-      message: "Użytkownik zarejestrowany. Sprawdź e-mail, aby zweryfikować konto.",
+      message:
+        "Użytkownik zarejestrowany. Sprawdź e-mail, aby zweryfikować konto.",
     });
   } catch (error) {
     next(error);

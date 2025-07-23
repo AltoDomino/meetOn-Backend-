@@ -1,8 +1,8 @@
 import express from "express";
-import { verifyEmail } from "../controllers/auth.verification.controller";
+import { verifyEmailController } from "../controllers/auth.verificationLink.controller";
 
 const router = express.Router();
 
-router.get("/verify-email", verifyEmail); 
+router.get("/verify-email", verifyEmailController); 
 
 export default router;
