@@ -30,19 +30,32 @@ export const getFilteredEvents = async (req, res) => {
       },
     });
 
-    if (maxDistance && userLat && userLng) {
+    if (maxDistance && !isNaN(userLat) && !isNaN(userLng)) {
       const filteredEvents = events.filter((event) => {
-        if (!event.latitude || !event.longitude) {
-          console.log(`⚠️ Brak współrzędnych dla wydarzenia ${event.id}`);
+        if (
+          event.latitude == null ||
+          event.longitude == null ||
+          isNaN(Number(event.latitude)) ||
+          isNaN(Number(event.longitude))
+        ) {
+          console.warn(`⚠️ Brak lub niepoprawne współrzędne dla eventu ${event.id}`);
           return false;
         }
 
         const distance = getDistance(
-          { latitude: userLat, longitude: userLng },
-          { latitude: event.latitude, longitude: event.longitude }
+          {
+            latitude: Number(event.latitude),
+            longitude: Number(event.longitude),
+          },
+          {
+            latitude: userLat,
+            longitude: userLng,
+          }
         );
 
-        return distance / 1000 <= maxDistance;
+        console.log(`📏 Dystans do eventu ${event.id}: ${distance}m`);
+
+        return distance <= maxDistance * 1000;
       });
 
       return res.json(filteredEvents);
