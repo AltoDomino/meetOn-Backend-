@@ -1,3 +1,4 @@
+// --- getJoinedEventsController.ts ---
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 
@@ -10,59 +11,51 @@ export const getJoinedEventsController = async (req: Request, res: Response) => 
   try {
     const now = new Date();
 
-    // 1️⃣ Wydarzenia stworzone przez użytkownika
-    const createdEvents = await prisma.event.findMany({
-      where: {
-        creatorId: userId,
-        endDate: { gt: now },
-      },
-      include: {
-        creator: { select: { userName: true } },
-        eventParticipants: {
-          select: { userId: true },
-        },
-      },
-    });
+    console.log("📥 userId zapytania:", userId);
 
-    // 2️⃣ Wydarzenia, do których użytkownik dołączył (ale NIE stworzył)
-    const joinedEvents = await prisma.event.findMany({
+    // 🔄 Pobieranie wydarzeń, gdzie user jest twórcą lub uczestnikiem
+    const events = await prisma.event.findMany({
       where: {
-        eventParticipants: {
-          some: {
-            userId,
+        OR: [
+          { creatorId: userId },
+          {
+            eventParticipants: {
+              some: { userId },
+            },
           },
-        },
-        creatorId: {
-          not: userId,
-        },
+        ],
         endDate: { gt: now },
       },
       include: {
         creator: { select: { userName: true } },
-        eventParticipants: {
-          select: { userId: true },
-        },
+        eventParticipants: { select: { userId: true, user: { select: { gender: true } } } },
       },
     });
 
-    // 3️⃣ Mapowanie i oznaczanie
-    const formatEvent = (event: any, isCreator: boolean) => ({
-      id: event.id,
-      activity: event.activity,
-      location: event.location,
-      startDate: event.startDate,
-      endDate: event.endDate,
-      creator: event.creator,
-      spots: event.maxParticipants,
-      participantsCount: event.eventParticipants.length,
-      isUserJoined: event.eventParticipants.some((p: any) => p.userId === userId),
-      isCreator,
-    });
+    console.log("🔍 Ilość znalezionych wydarzeń:", events.length);
 
-    const result = [
-      ...createdEvents.map((e) => formatEvent(e, true)),
-      ...joinedEvents.map((e) => formatEvent(e, false)),
-    ];
+    const result = events.map((event) => {
+      const isCreator = event.creatorId === userId;
+      const isUserJoined = event.eventParticipants.some((p) => p.userId === userId);
+
+      console.log(`🧩 Event ID: ${event.id}`);
+      console.log(" - Twórca ID:", event.creatorId);
+      console.log(" - Czy użytkownik jest twórcą?", isCreator);
+      console.log(" - Czy użytkownik dołączył?", isUserJoined);
+
+      return {
+        id: event.id,
+        activity: event.activity,
+        location: event.location,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        creator: event.creator,
+        spots: event.maxParticipants,
+        participantsCount: event.eventParticipants.length,
+        isUserJoined,
+        isCreator,
+      };
+    });
 
     console.log("📦 Wynik /api/event/joined:", result);
 
