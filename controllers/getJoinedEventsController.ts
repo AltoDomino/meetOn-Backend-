@@ -1,4 +1,3 @@
-// --- getJoinedEventsController.ts ---
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 
@@ -11,27 +10,7 @@ export const getJoinedEventsController = async (req: Request, res: Response) => 
   try {
     const now = new Date();
 
-    // 1️⃣ Wydarzenia, do których dołączył jako uczestnik
-    const joinedEvents = await prisma.eventParticipant.findMany({
-      where: {
-        userId,
-        event: {
-          endDate: { gt: now },
-        },
-      },
-      include: {
-        event: {
-          include: {
-            creator: { select: { userName: true } },
-            eventParticipants: {
-              include: { user: { select: { gender: true } } },
-            },
-          },
-        },
-      },
-    });
-
-    // 2️⃣ Wydarzenia, które sam stworzył (jako twórca)
+    // 1️⃣ Wydarzenia stworzone przez użytkownika
     const createdEvents = await prisma.event.findMany({
       where: {
         creatorId: userId,
@@ -40,31 +19,50 @@ export const getJoinedEventsController = async (req: Request, res: Response) => 
       include: {
         creator: { select: { userName: true } },
         eventParticipants: {
-          include: { user: { select: { gender: true } } },
+          select: { userId: true },
         },
       },
     });
 
-    // 3️⃣ Mergowanie i mapowanie
-    const allEvents = [...joinedEvents.map((e: { event: any; }) => e.event), ...createdEvents];
-
-    const uniqueEventsMap = new Map();
-    allEvents.forEach((event) => {
-      uniqueEventsMap.set(event.id, {
-        id: event.id,
-        activity: event.activity,
-        location: event.location,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        creator: event.creator,
-        spots: event.maxParticipants,
-        participantsCount: event.eventParticipants.length,
-        isUserJoined: event.eventParticipants.some((p: { userId: number; }) => p.userId === userId),
-        isCreator: event.creatorId === userId,
-      });
+    // 2️⃣ Wydarzenia, do których użytkownik dołączył (ale NIE stworzył)
+    const joinedEvents = await prisma.event.findMany({
+      where: {
+        eventParticipants: {
+          some: {
+            userId,
+          },
+        },
+        creatorId: {
+          not: userId,
+        },
+        endDate: { gt: now },
+      },
+      include: {
+        creator: { select: { userName: true } },
+        eventParticipants: {
+          select: { userId: true },
+        },
+      },
     });
 
-    const result = Array.from(uniqueEventsMap.values());
+    // 3️⃣ Mapowanie i oznaczanie
+    const formatEvent = (event: any, isCreator: boolean) => ({
+      id: event.id,
+      activity: event.activity,
+      location: event.location,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      creator: event.creator,
+      spots: event.maxParticipants,
+      participantsCount: event.eventParticipants.length,
+      isUserJoined: event.eventParticipants.some((p: any) => p.userId === userId),
+      isCreator,
+    });
+
+    const result = [
+      ...createdEvents.map((e) => formatEvent(e, true)),
+      ...joinedEvents.map((e) => formatEvent(e, false)),
+    ];
 
     console.log("📦 Wynik /api/event/joined:", result);
 
