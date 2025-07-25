@@ -1,9 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import { getDistance } from "geolib";
+import { Request, Response } from "express";
 
 const prisma = new PrismaClient();
 
-export const getFilteredEvents = async (req, res) => {
+export const getFilteredEvents = async (req: Request, res: Response) => {
   const userId = Number(req.query.userId);
   const ownOnly = req.query.ownOnly === "true";
   const maxDistance = req.query.distance ? Number(req.query.distance) : null;
@@ -23,10 +24,7 @@ export const getFilteredEvents = async (req, res) => {
       userLng,
     });
 
-    let events;
-
     if (ownOnly) {
-      // Pokaż tylko wydarzenia utworzone lub dołączone przez użytkownika
       const now = new Date();
 
       const joined = await prisma.eventParticipant.findMany({
@@ -59,13 +57,9 @@ export const getFilteredEvents = async (req, res) => {
         },
       });
 
-      const merged = [
-        ...joined.map((e) => e.event),
-        ...created,
-      ];
-
-      // Usuwamy duplikaty po ID
+      const merged = [...joined.map((e) => e.event), ...created];
       const map = new Map();
+
       for (const ev of merged) {
         map.set(ev.id, {
           id: ev.id,
@@ -81,26 +75,28 @@ export const getFilteredEvents = async (req, res) => {
         });
       }
 
+      console.log("📦 Zwracane wydarzenia (ownOnly):", Array.from(map.values()));
       return res.json(Array.from(map.values()));
     }
 
-    events = await prisma.event.findMany({
-      where: {
-        creatorId: { not: userId },
-      },
+    const baseWhere = maxDistance && userLat && userLng
+      ? { creatorId: { not: userId } }
+      : {}; // brak lokalizacji = pokaż wszystko
+
+    const events = await prisma.event.findMany({
+      where: baseWhere,
       include: {
-        creator: {
-          select: {
-            id: true,
-            userName: true,
-          },
-        },
+        creator: { select: { id: true, userName: true } },
         eventParticipants: true,
       },
     });
 
+    console.log("👤 Twórcy wydarzeń:", events.map((e) => `${e.id} - ${e.creator.userName}`));
+
+    let filteredEvents = events;
+
     if (maxDistance && userLat && userLng) {
-      const filtered = events.filter((event) => {
+      filteredEvents = events.filter((event) => {
         if (!event.latitude || !event.longitude) return false;
 
         const distance = getDistance(
@@ -108,41 +104,28 @@ export const getFilteredEvents = async (req, res) => {
           { latitude: event.latitude, longitude: event.longitude }
         );
 
+        console.log(`📏 Dystans do eventu ${event.id}: ${distance}m`);
         return distance / 1000 <= maxDistance;
       });
-
-      const mapped = filtered.map((event) => ({
-        id: event.id,
-        activity: event.activity,
-        location: event.location,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        creator: event.creator,
-        spots: event.maxParticipants,
-        participantsCount: event.eventParticipants.length,
-        isUserJoined: event.eventParticipants.some((p) => p.userId === userId),
-        isCreator: event.creatorId === userId,
-      }));
-
-      return res.json(mapped);
-    } else {
-      const mapped = events.map((event) => ({
-        id: event.id,
-        activity: event.activity,
-        location: event.location,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        creator: event.creator,
-        spots: event.maxParticipants,
-        participantsCount: event.eventParticipants.length,
-        isUserJoined: event.eventParticipants.some((p) => p.userId === userId),
-        isCreator: event.creatorId === userId,
-      }));
-
-      return res.json(mapped);
     }
+
+    const mapped = filteredEvents.map((event) => ({
+      id: event.id,
+      activity: event.activity,
+      location: event.location,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      creator: event.creator,
+      spots: event.maxParticipants,
+      participantsCount: event.eventParticipants.length,
+      isUserJoined: event.eventParticipants.some((p) => p.userId === userId),
+      isCreator: event.creatorId === userId,
+    }));
+
+    console.log("📦 Wynik filtrowania:", mapped);
+    return res.json(mapped);
   } catch (err) {
     console.error("❌ Błąd filtrowania wydarzeń:", err);
-    res.status(500).json({ error: "Błąd serwera", details: err.message });
+    return res.status(500).json({ error: "Błąd serwera", details: err.message });
   }
 };
