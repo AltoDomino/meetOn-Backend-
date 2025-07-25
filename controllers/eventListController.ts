@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import geolib from "geolib";
+import { getDistance } from "geolib";
 
 const prisma = new PrismaClient();
 
@@ -37,7 +37,7 @@ export const getFilteredEvents = async (req, res) => {
           return false;
         }
 
-        const distance = geolib.getDistance(
+        const distance = getDistance(
           { latitude: userLat, longitude: userLng },
           { latitude: event.latitude, longitude: event.longitude }
         );
