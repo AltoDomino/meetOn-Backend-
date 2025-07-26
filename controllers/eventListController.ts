@@ -8,6 +8,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
   const userId = Number(req.query.userId);
   const ownOnly = req.query.ownOnly === "true";
   const maxDistance = req.query.distance ? Number(req.query.distance) : null;
+  const minDistance = req.query.minDistance ? Number(req.query.minDistance) : 0;
   const userLat = Number(req.query.latitude);
   const userLng = Number(req.query.longitude);
 
@@ -19,6 +20,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
     console.log("🔍 Parametry zapytania:", {
       userId,
       ownOnly,
+      minDistance,
       maxDistance,
       userLat,
       userLng,
@@ -79,8 +81,9 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       return res.json(Array.from(map.values()));
     }
 
-    const baseWhere =
-      maxDistance && userLat && userLng ? { creatorId: { not: userId } } : {};
+    const baseWhere = maxDistance && userLat && userLng
+      ? { creatorId: { not: userId } }
+      : {};
 
     const events = await prisma.event.findMany({
       where: baseWhere,
@@ -128,8 +131,10 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
           { latitude: event.latitude, longitude: event.longitude }
         );
 
-        console.log(`📏 Dystans do eventu ${event.id}: ${distance}m`);
-        return distance / 1000 <= maxDistance;
+        const distanceKm = distance / 1000;
+        console.log(`📏 Dystans do eventu ${event.id}: ${distanceKm} km`);
+
+        return distanceKm <= maxDistance && distanceKm >= minDistance;
       });
     }
 
@@ -148,10 +153,8 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
 
     console.log("📦 Wynik filtrowania:", mapped);
     return res.json(mapped);
-  } catch (err) {
+  } catch (err: any) {
     console.error("❌ Błąd filtrowania wydarzeń:", err);
-    return res
-      .status(500)
-      .json({ error: "Błąd serwera", details: err.message });
+    return res.status(500).json({ error: "Błąd serwera", details: err.message });
   }
 };
