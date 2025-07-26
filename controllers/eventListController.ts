@@ -79,25 +79,49 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       return res.json(Array.from(map.values()));
     }
 
-    const baseWhere = maxDistance && userLat && userLng
-      ? { creatorId: { not: userId } }
-      : {}; // brak lokalizacji = pokaż wszystko
+    const baseWhere =
+      maxDistance && userLat && userLng ? { creatorId: { not: userId } } : {};
 
     const events = await prisma.event.findMany({
       where: baseWhere,
-      include: {
+      select: {
+        id: true,
+        activity: true,
+        location: true,
+        startDate: true,
+        endDate: true,
+        latitude: true,
+        longitude: true,
+        creatorId: true,
+        maxParticipants: true,
         creator: { select: { id: true, userName: true } },
         eventParticipants: true,
       },
     });
 
-    console.log("👤 Twórcy wydarzeń:", events.map((e) => `${e.id} - ${e.creator.userName}`));
+    console.log(
+      "📍 Wszystkie eventy z lokalizacją:",
+      events.map((e) => ({
+        id: e.id,
+        location: e.location,
+        latitude: e.latitude,
+        longitude: e.longitude,
+      }))
+    );
+
+    console.log(
+      "👤 Twórcy wydarzeń:",
+      events.map((e) => `${e.id} - ${e.creator.userName}`)
+    );
 
     let filteredEvents = events;
 
     if (maxDistance && userLat && userLng) {
       filteredEvents = events.filter((event) => {
-        if (!event.latitude || !event.longitude) return false;
+        if (!event.latitude || !event.longitude) {
+          console.log(`⚠️ Event ${event.id} nie ma współrzędnych`);
+          return false;
+        }
 
         const distance = getDistance(
           { latitude: userLat, longitude: userLng },
@@ -126,6 +150,8 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
     return res.json(mapped);
   } catch (err) {
     console.error("❌ Błąd filtrowania wydarzeń:", err);
-    return res.status(500).json({ error: "Błąd serwera", details: err.message });
+    return res
+      .status(500)
+      .json({ error: "Błąd serwera", details: err.message });
   }
 };
