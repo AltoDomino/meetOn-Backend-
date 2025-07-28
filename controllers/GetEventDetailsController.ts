@@ -18,7 +18,12 @@ export const getEventDetailsController = async (
       where: { id: eventId },
       include: {
         creator: {
-          select: { userName: true },
+          select: {
+            userName: true,
+            avatarUrl: true,
+            description: true,
+            age: true,
+          },
         },
       },
     });
@@ -36,7 +41,7 @@ export const getEventDetailsController = async (
             userName: true,
             avatarUrl: true,
             description: true,
-            age: true, // 👉 Dodajemy wiek
+            age: true,
           },
         },
       },
@@ -47,8 +52,15 @@ export const getEventDetailsController = async (
       userName: ep.user.userName,
       avatar: ep.user.avatarUrl,
       description: ep.user.description,
-      age: ep.user.age, // 👉 Dodajemy wiek do odpowiedzi
+      age: ep.user.age,
     }));
+
+    const creator = {
+      userName: event.creator.userName,
+      avatar: event.creator.avatarUrl,
+      description: event.creator.description,
+      age: event.creator.age,
+    };
 
     const formattedEvent = {
       id: event.id,
@@ -56,7 +68,7 @@ export const getEventDetailsController = async (
       location: event.location,
       startDate: event.startDate,
       endDate: event.endDate,
-      creator: event.creator,
+      creator,
       participantsCount: participants.length,
       maxParticipants: event.maxParticipants,
       participants,
@@ -68,3 +80,4 @@ export const getEventDetailsController = async (
     res.status(500).json({ error: "Błąd serwera" });
   }
 };
+
