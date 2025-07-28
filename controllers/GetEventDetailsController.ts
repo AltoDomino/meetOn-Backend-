@@ -36,17 +36,18 @@ export const getEventDetailsController = async (
             userName: true,
             avatarUrl: true,
             description: true,
+            age: true, // 👉 Dodajemy wiek
           },
         },
       },
     });
 
-    // 🔄 Mapa uczestników na podstawie relacji user
     const participants = eventParticipants.map((ep) => ({
       id: ep.user.id,
       userName: ep.user.userName,
       avatar: ep.user.avatarUrl,
       description: ep.user.description,
+      age: ep.user.age, // 👉 Dodajemy wiek do odpowiedzi
     }));
 
     const formattedEvent = {
