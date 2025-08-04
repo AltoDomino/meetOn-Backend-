@@ -31,11 +31,15 @@ export const createEventController = async (req: Request, res: Response) => {
     }
 
     if (parsedStart <= now) {
-      return res.status(400).json({ error: "Data rozpoczęcia musi być w przyszłości." });
+      return res
+        .status(400)
+        .json({ error: "Data rozpoczęcia musi być w przyszłości." });
     }
 
     if (parsedEnd <= parsedStart) {
-      return res.status(400).json({ error: "Data zakończenia musi być po rozpoczęciu." });
+      return res
+        .status(400)
+        .json({ error: "Data zakończenia musi być po rozpoczęciu." });
     }
 
     console.log("📦 Otrzymane współrzędne:", { latitude, longitude });
@@ -117,7 +121,18 @@ export const createEventController = async (req: Request, res: Response) => {
 
     const chunks = expo.chunkPushNotifications(messages);
     for (const chunk of chunks) {
-      await expo.sendPushNotificationsAsync(chunk);
+      try {
+        const tickets = await expo.sendPushNotificationsAsync(chunk);
+        console.log("📦 Push tickets:", tickets);
+
+        for (const ticket of tickets) {
+          if (ticket.status !== "ok") {
+            console.error("❌ Błąd push ticketu:", ticket);
+          }
+        }
+      } catch (error) {
+        console.error("❌ Błąd wysyłki powiadomienia:", error);
+      }
     }
 
     await Promise.all(
