@@ -7,51 +7,61 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PushTokenType {
+  expo
+  fcm
+}
+
+enum Platform {
+  android
+  ios
+  web
+}
+
 model User {
-  id        Int      @id @default(autoincrement())
-  userName  String   @unique
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  gender    String?  // Dodane pole - płeć użytkownika
-  avatarUrl String?
-  age       Int?
-  description String?
-  isVerified         Boolean  @default(false)
-  verificationToken  String?
+  id                  Int                @id @default(autoincrement())
+  userName            String             @unique
+  email               String             @unique
+  password            String
+  createdAt           DateTime           @default(now())
+  gender              String?
+  avatarUrl           String?
+  age                 Int?
+  description         String?
+  isVerified          Boolean            @default(false)
+  verificationToken   String?
   verificationExpires DateTime?
 
   // Relacje
-  eventsCreated     Event[]         @relation("EventCreator")
-  userInterests     UserInterest[]
-  pushToken         PushToken?
-  sentRequests      Friendship[]    @relation("Requester")
-  receivedRequests  Friendship[]    @relation("Recipient")
-  Notification      Notification[]
-  participatedEvents EventParticipant[]
+  eventsCreated       Event[]            @relation("EventCreator")
+  userInterests       UserInterest[]
+  pushTokens          PushToken[]        // wiele tokenów per user
+  sentRequests        Friendship[]       @relation("Requester")
+  receivedRequests    Friendship[]       @relation("Recipient")
+  Notification        Notification[]
+  participatedEvents  EventParticipant[]
 }
 
 model Event {
-  id              Int      @id @default(autoincrement())
-  location        String
-  address         String
-  startDate       DateTime
-  endDate         DateTime
-  activity        String
-  maxParticipants Int
-  genderBalance   Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  minAge          Int?    
-  maxAge          Int?
-  latitude   Float?
-  longitude  Float?    
+  id               Int       @id @default(autoincrement())
+  location         String
+  address          String
+  startDate        DateTime
+  endDate          DateTime
+  activity         String
+  maxParticipants  Int
+  genderBalance    Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  minAge           Int?
+  maxAge           Int?
+  latitude         Float?
+  longitude        Float?
 
   // Relacje
-  creatorId         Int
-  creator           User             @relation("EventCreator", fields: [creatorId], references: [id])
+  creatorId        Int
+  creator          User      @relation("EventCreator", fields: [creatorId], references: [id])
   eventParticipants EventParticipant[]
 }
-
 
 model EventParticipant {
   id       Int      @id @default(autoincrement())
@@ -74,12 +84,18 @@ model UserInterest {
 }
 
 model PushToken {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @unique
-  token     String
-  createdAt DateTime @default(now())
+  id         Int           @id @default(autoincrement())
+  userId     Int
+  token      String
+  tokenType  PushTokenType @default(expo)   // 👈 domyślnie 'expo' (ważne dla istniejących rekordów)
+  platform   Platform?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
 
-   user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([userId, token])  // wiele urządzeń per user, bez duplikatu tokenu
+  @@index([userId])
 }
 
 model Notification {
