@@ -29,3 +29,5 @@ build/
 
 # Dependency directories
 node_modules/
+
+services/NotificationServices/config/firebase-service-account.json

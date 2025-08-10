@@ -7,6 +7,11 @@ COPY package.json package-lock.json ./
 RUN npm install
 
 COPY . .
+
+# Generujemy klienta Prisma po instalacji paczek i migracjach
+RUN npx prisma generate
+
+# Budujemy TypeScript -> JavaScript
 RUN npm run build
 
 # Etap 2: Produkcyjny obraz
@@ -17,13 +22,15 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --only=production
 
+# Kopiujemy skompilowany kod i pliki Prisma z buildera
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY prisma ./prisma
 
 EXPOSE 3000
 
-# ✅ WAŻNE: render ustawi PORT, którego musisz użyć w server.js
 ENV NODE_ENV=production
 ENV FRONTEND_URL=${FRONTEND_URL}
-CMD ["sh", "-c", "npx prisma generate && node dist/server.js"]
 
+CMD ["node", "dist/server.js"]
