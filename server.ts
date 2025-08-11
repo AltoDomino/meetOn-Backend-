@@ -19,6 +19,7 @@ import EventJoinRoutes from "./routes/EventJoinRoutes";
 import EventLeaveRoutes from "./routes/EventLeaveRoutes";
 import AvatarRoutes from "./routes/AvatarRoutes";
 import settingsRoutes from "./routes/auth.settingsRoutes";
+import "./services/NotificationServices/lib/firebaseAdmin"
 
 dotenv.config();
 

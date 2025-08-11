@@ -3,17 +3,15 @@ import path from "path";
 import fs from "fs";
 
 if (!admin.apps.length) {
-  let creds;
+  let creds: any;
 
   if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
-    // Pobierz z env w formacie base64
     const jsonStr = Buffer.from(
       process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
       "base64"
     ).toString("utf-8");
     creds = JSON.parse(jsonStr);
   } else {
-    // Pobierz lokalnie, jeśli plik istnieje
     const serviceAccountPath = path.join(
       __dirname,
       "../config/firebase-service-account.json"
@@ -25,6 +23,8 @@ if (!admin.apps.length) {
     }
     creds = require(serviceAccountPath);
   }
+
+  console.log("🔥 Firebase Admin using project:", creds?.project_id);
 
   admin.initializeApp({
     credential: admin.credential.cert(creds),
