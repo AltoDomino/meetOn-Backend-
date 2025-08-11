@@ -13,6 +13,14 @@ router.post("/", async (req, res) => {
       platform?: string;   // "android" | "ios" | "web"
     };
 
+    // 🔍 Log wysyłanych danych
+    console.log("📦 Wysyłam do backendu:", {
+      userId,
+      token,
+      fcmToken,
+      platform,
+    });
+
     if (!userId || (!token && !fcmToken)) {
       return res.status(400).json({ error: "Wymagane: userId oraz token lub fcmToken" });
     }
