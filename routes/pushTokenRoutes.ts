@@ -6,34 +6,49 @@ const prisma = new PrismaClient();
 
 router.post("/", async (req, res) => {
   try {
-    const { userId, token, platform } = req.body as {
+    const { userId, token, fcmToken, platform } = req.body as {
       userId?: number;
-      token?: string;
-      platform?: string;
+      token?: string;      // Expo
+      fcmToken?: string;   // FCM
+      platform?: string;   // "android" | "ios" | "web"
     };
 
-    if (!userId || !token) {
-      return res.status(400).json({ error: "Brakuje danych (userId, token)" });
+    if (!userId || (!token && !fcmToken)) {
+      return res.status(400).json({ error: "Wymagane: userId oraz token lub fcmToken" });
     }
 
-    const tokenType: PushTokenType = token.startsWith("ExponentPushToken[")
-      ? PushTokenType.expo
-      : PushTokenType.fcm;
-
-    const normalizedPlatform: Platform | undefined =
+    const normPlatform: Platform | undefined =
       platform && ["android", "ios", "web"].includes(platform)
         ? (platform as Platform)
         : undefined;
 
-    const saved = await prisma.pushToken.upsert({
-      where: { userId_token: { userId, token } },
-      update: { tokenType, platform: normalizedPlatform },
-      create: { userId, token, tokenType, platform: normalizedPlatform },
-    });
+    const saved: any[] = [];
 
-    return res.status(200).json({ message: "Token zapisany", saved });
-  } catch (error) {
-    console.error("Błąd zapisu tokena:", error);
+    // Zapis Expo tokenu
+    if (token) {
+      const s = await prisma.pushToken.upsert({
+        where: { userId_token: { userId, token } },
+        update: { tokenType: PushTokenType.expo, platform: normPlatform },
+        create: { userId, token, tokenType: PushTokenType.expo, platform: normPlatform },
+      });
+      saved.push({ kind: "expo", value: token });
+      console.log("📨 Expo token zapisany:", token);
+    }
+
+    // Zapis FCM tokenu
+    if (fcmToken) {
+      const s = await prisma.pushToken.upsert({
+        where: { userId_token: { userId, token: fcmToken } },
+        update: { tokenType: PushTokenType.fcm, platform: normPlatform },
+        create: { userId, token: fcmToken, tokenType: PushTokenType.fcm, platform: normPlatform },
+      });
+      saved.push({ kind: "fcm", value: fcmToken });
+      console.log("🔥 FCM token zapisany:", fcmToken);
+    }
+
+    return res.status(200).json({ ok: true, saved });
+  } catch (err) {
+    console.error("Błąd zapisu tokena:", err);
     return res.status(500).json({ error: "Błąd serwera" });
   }
 });
