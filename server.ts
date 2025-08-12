@@ -1,10 +1,12 @@
+// src/server.ts
+import "dotenv/config"; // ← załaduj .env NAJWCZEŚNIEJ
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import http from "http";
-import { initSocket, io } from "./socket";
 import type { Socket } from "socket.io";
-import "dotenv/config"
+import { initSocket, io } from "./socket";
+
+// ROUTES
 import registerRouter from "./routes/auth.registrationRoutes";
 import emailVerificationRoutes from "./routes/auth.verificationRoutes";
 import loginRouter from "./routes/auth.loginRoutes";
@@ -20,27 +22,45 @@ import EventLeaveRoutes from "./routes/EventLeaveRoutes";
 import AvatarRoutes from "./routes/AvatarRoutes";
 import settingsRoutes from "./routes/auth.settingsRoutes";
 import notificationPreference from "./routes/notificationPreference";
-import "./services/NotificationServices/lib/firebaseAdmin"
-
-dotenv.config();
+// jeśli masz init FCM:
+import "./services/NotificationServices/lib/firebaseAdmin";
 
 const app = express();
-const server = http.createServer(app); // potrzebne do socket.io
-initSocket(server); // 👈 uruchamiamy socket.io
+const server = http.createServer(app);
 
-// Middleware
-app.use(express.json());
-app.use(cors());
+// ===== Socket.IO boot =====
+initSocket(server);
 
-// Logger
-const requestLogger = (req: Request, res: Response, next: NextFunction) => {
+// ===== Middleware =====
+app.use(express.json({ limit: "1mb" }));
+
+// CORS: ustaw origin z .env (lista rozdzielona przecinkami) albo "*"
+const allowedOrigins =
+  process.env.CORS_ORIGIN?.split(",").map((s) => s.trim()).filter(Boolean) ?? ["*"];
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
+
+// Logger żądań
+const requestLogger = (req: Request, _res: Response, next: NextFunction) => {
   console.log(`${req.method} ${req.url}`);
-  if (Object.keys(req.body).length) console.log("Body:", req.body);
+  if (Object.keys(req.body ?? {}).length) {
+    console.log("Body:", req.body);
+  }
   next();
 };
 app.use(requestLogger);
 
-// ROUTES
+// ===== Healthcheck =====
+app.get("/health", (_req, res) => {
+  res.status(200).json({ ok: true, uptime: process.uptime() });
+});
+
+// ===== ROUTES =====
 app.use("/api/registration", registerRouter);
 app.use("/api/login", loginRouter);
 app.use("/api/interests", userInterestRoutes);
@@ -58,32 +78,37 @@ app.use("/api/user", settingsRoutes);
 app.use("/api/users", notificationPreference);
 app.use("/api/verification", emailVerificationRoutes);
 
-// 404 handler
-app.use((req, res) => {
+// ===== 404 handler =====
+app.use((_req, res) => {
   res.status(404).json({ error: "Nie znaleziono endpointu" });
 });
 
-// Error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error("❌ Błąd serwera:", err.message);
+// ===== Error handler =====
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("❌ Błąd serwera:", err);
   res.status(500).json({ error: "Błąd serwera" });
 });
 
-// SOCKET.IO event handlers
+// ===== SOCKET.IO events =====
 io.on("connection", (socket: Socket) => {
   console.log(`✅ Użytkownik połączony: ${socket.id}`);
 
   socket.on("joinRoom", (eventId: string) => {
+    if (!eventId) return;
     socket.join(eventId);
     console.log(`➡️ Dołączono do pokoju: ${eventId}`);
   });
 
-  socket.on("sendMessage", ({ eventId, content, sender }) => {
+  socket.on("sendMessage", ({ eventId, content, sender }: { eventId: string; content: string; sender: string }) => {
+    if (!eventId || !content || !sender) return;
+
     const message = {
       sender,
       content,
       timestamp: new Date().toISOString(),
+      roomId: eventId, 
     };
+
     io.to(eventId).emit("message", message);
     console.log(`💬 Wiadomość od ${sender} w ${eventId}: ${content}`);
   });
@@ -98,13 +123,11 @@ io.on("connection", (socket: Socket) => {
   });
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
+// ===== Start server =====
+const PORT = Number(process.env.PORT) || 3000;
 server.listen(PORT, () => {
   console.log(`🚀 Serwer działa na porcie ${PORT}`);
-});
-
-app.post("/api/test", (req, res) => {
-  console.log("💥 TESTOWA TRASA działa", req.body);
-  res.status(200).json({ success: true });
+  console.log(
+    `[BOOT] JWT_SECRET present: ${!!process.env.JWT_SECRET} len=${process.env.JWT_SECRET?.length || 0} exp=${process.env.JWT_EXPIRES ?? "7d"}`
+  );
 });

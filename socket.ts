@@ -5,9 +5,10 @@ let io: Server;
 export const initSocket = (server: any) => {
   io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: process.env.CORS_ORIGIN?.split(",") || "*",
       methods: ["GET", "POST"],
     },
+    transports: ["websocket", "polling"], // 👈 stabilność połączenia
   });
 
   return io;
