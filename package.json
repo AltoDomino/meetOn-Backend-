@@ -1,7 +1,8 @@
 {
   "scripts": {
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node -r dotenv/config dist/server.js",
+    "dev": "nodemon --watch src --exec \"ts-node -r dotenv/config src/server.ts\""
   },
   "dependencies": {
     "@prisma/client": "^6.13.0",
