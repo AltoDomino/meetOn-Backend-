@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import http from "http";
 import { initSocket, io } from "./socket";
 import type { Socket } from "socket.io";
-
+import "dotenv/config"
 import registerRouter from "./routes/auth.registrationRoutes";
 import emailVerificationRoutes from "./routes/auth.verificationRoutes";
 import loginRouter from "./routes/auth.loginRoutes";
