@@ -19,6 +19,7 @@ import EventJoinRoutes from "./routes/EventJoinRoutes";
 import EventLeaveRoutes from "./routes/EventLeaveRoutes";
 import AvatarRoutes from "./routes/AvatarRoutes";
 import settingsRoutes from "./routes/auth.settingsRoutes";
+import notificationPreference from "./routes/notificationPreference";
 import "./services/NotificationServices/lib/firebaseAdmin"
 
 dotenv.config();
@@ -54,6 +55,7 @@ app.use("/api/leave", EventLeaveRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use("/api/avatar", AvatarRoutes);
 app.use("/api/user", settingsRoutes);
+app.use("/api/users", notificationPreference);
 app.use("/api/verification", emailVerificationRoutes);
 
 // 404 handler

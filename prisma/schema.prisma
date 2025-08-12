@@ -1,3 +1,7 @@
+// =======================================
+// Prisma schema
+// =======================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -19,48 +23,66 @@ enum Platform {
 }
 
 model User {
-  id                  Int                @id @default(autoincrement())
-  userName            String             @unique
-  email               String             @unique
-  password            String
-  createdAt           DateTime           @default(now())
-  gender              String?
-  avatarUrl           String?
-  age                 Int?
-  description         String?
-  isVerified          Boolean            @default(false)
-  verificationToken   String?
-  verificationExpires DateTime?
+  id                    Int        @id @default(autoincrement())
+  userName              String     @unique
+  email                 String     @unique
+  password              String
+  createdAt             DateTime   @default(now())
+  gender                String?
+  avatarUrl             String?
+  age                   Int?
+  description           String?
+  isVerified            Boolean    @default(false)
+  verificationToken     String?
+  verificationExpires   DateTime?
 
-  // Relacje
-  eventsCreated       Event[]            @relation("EventCreator")
-  userInterests       UserInterest[]
-  pushTokens          PushToken[]        // wiele tokenów per user
-  sentRequests        Friendship[]       @relation("Requester")
-  receivedRequests    Friendship[]       @relation("Recipient")
-  Notification        Notification[]
-  participatedEvents  EventParticipant[]
+  // --- Preferencje powiadomień / lokalizacje użytkownika ---
+  notificationRadiusKm  Int        @default(30)     // promień powiadomień w km
+  customNotifyEnabled   Boolean    @default(false)  // czy używać własnej (ręcznie podanej) lokalizacji
+  customNotifyLat       Float?                      // lat dla custom location
+  customNotifyLng       Float?                      // lng dla custom location
+  lastDeviceLat         Float?                      // ostatnia lat z GPS urządzenia
+  lastDeviceLng         Float?                      // ostatnia lng z GPS urządzenia
+
+  // --- Relacje ---
+  eventsCreated         Event[]    @relation("EventCreator")
+  userInterests         UserInterest[]
+  pushTokens            PushToken[]
+  sentRequests          Friendship[] @relation("Requester")
+  receivedRequests      Friendship[] @relation("Recipient")
+  Notification          Notification[]
+  participatedEvents    EventParticipant[]
+
+  @@index([customNotifyLat, customNotifyLng])
+  @@index([lastDeviceLat, lastDeviceLng])
 }
 
 model Event {
-  id               Int       @id @default(autoincrement())
-  location         String
-  address          String
-  startDate        DateTime
-  endDate          DateTime
-  activity         String
-  maxParticipants  Int
-  genderBalance    Boolean   @default(false)
-  createdAt        DateTime  @default(now())
-  minAge           Int?
-  maxAge           Int?
-  latitude         Float?
-  longitude        Float?
+  id                 Int       @id @default(autoincrement())
+  location           String
+  address            String
+  startDate          DateTime
+  endDate            DateTime
+  activity           String
+  maxParticipants    Int
+  genderBalance      Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  minAge             Int?
+  maxAge             Int?
+  latitude           Float?
+  longitude          Float?
 
-  // Relacje
-  creatorId        Int
-  creator          User      @relation("EventCreator", fields: [creatorId], references: [id])
-  eventParticipants EventParticipant[]
+  // --- Snapshot lokalizacji twórcy w momencie tworzenia wydarzenia ---
+  creatorLatAtCreate Float?
+  creatorLngAtCreate Float?
+
+  // --- Relacje ---
+  creatorId          Int
+  creator            User      @relation("EventCreator", fields: [creatorId], references: [id])
+  eventParticipants  EventParticipant[]
+
+  @@index([latitude, longitude])
+  @@index([creatorLatAtCreate, creatorLngAtCreate])
 }
 
 model EventParticipant {
@@ -73,6 +95,8 @@ model EventParticipant {
   event Event @relation(fields: [eventId], references: [id])
 
   @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
 }
 
 model UserInterest {
@@ -81,13 +105,15 @@ model UserInterest {
   activity String
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model PushToken {
   id         Int           @id @default(autoincrement())
   userId     Int
   token      String
-  tokenType  PushTokenType @default(expo)   // 👈 domyślnie 'expo' (ważne dla istniejących rekordów)
+  tokenType  PushTokenType @default(expo) // domyślnie 'expo'
   platform   Platform?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
@@ -105,6 +131,8 @@ model Notification {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model Friendship {
@@ -116,4 +144,7 @@ model Friendship {
 
   requester User @relation("Requester", fields: [requesterId], references: [id])
   recipient User @relation("Recipient", fields: [recipientId], references: [id])
+
+  @@index([requesterId])
+  @@index([recipientId])
 }

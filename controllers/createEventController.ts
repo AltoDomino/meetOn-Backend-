@@ -36,6 +36,40 @@ export const createEventController = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Data zakończenia musi być po rozpoczęciu." });
     }
 
+    const creatorIdNum = Number(creatorId);
+
+    // --- pobierz dane twórcy (do snapshotu i treści powiadomień) ---
+    const creator = await prisma.user.findUnique({
+      where: { id: creatorIdNum },
+      select: {
+        userName: true,
+        avatarUrl: true,
+        customNotifyEnabled: true,
+        customNotifyLat: true,
+        customNotifyLng: true,
+        lastDeviceLat: true,
+        lastDeviceLng: true,
+      },
+    });
+
+    if (!creator) {
+      return res.status(404).json({ error: "Twórca wydarzenia nie istnieje." });
+    }
+
+    // --- snapshot lokalizacji twórcy w momencie tworzenia wydarzenia ---
+    // reguła: jeśli creator.customNotifyEnabled → bierz custom; w przeciwnym razie lastDevice
+    let creatorLatAtCreate: number | null = null;
+    let creatorLngAtCreate: number | null = null;
+
+    if (creator.customNotifyEnabled && creator.customNotifyLat != null && creator.customNotifyLng != null) {
+      creatorLatAtCreate = creator.customNotifyLat;
+      creatorLngAtCreate = creator.customNotifyLng;
+    } else if (creator.lastDeviceLat != null && creator.lastDeviceLng != null) {
+      creatorLatAtCreate = creator.lastDeviceLat;
+      creatorLngAtCreate = creator.lastDeviceLng;
+    }
+    // jeśli twórca nie ma żadnej lokalizacji — snapshot pozostaje null (zajmie się tym logika selekcji powiadomień)
+
     // --- utworzenie eventu ---
     const event = await prisma.event.create({
       data: {
@@ -44,23 +78,22 @@ export const createEventController = async (req: Request, res: Response) => {
         startDate: parsedStart,
         endDate: parsedEnd,
         activity,
-        creatorId: Number(creatorId),
+        creatorId: creatorIdNum,
         maxParticipants: Number(spots),
         genderBalance: !!genderSplit,
-        minAge: minAge ?? 0,
-        maxAge: maxAge ?? 99,
-        latitude: latitude ? Number(latitude) : null,
-        longitude: longitude ? Number(longitude) : null,
+        minAge: typeof minAge === "number" ? minAge : minAge ? Number(minAge) : null,
+        maxAge: typeof maxAge === "number" ? maxAge : maxAge ? Number(maxAge) : null,
+        latitude: latitude != null ? Number(latitude) : null,
+        longitude: longitude != null ? Number(longitude) : null,
+        // ⬇️ snapshot twórcy
+        creatorLatAtCreate,
+        creatorLngAtCreate,
       },
     });
 
     // --- dane twórcy (do treści powiadomień) ---
-    const creator = await prisma.user.findUnique({
-      where: { id: Number(creatorId) },
-      select: { userName: true, avatarUrl: true },
-    });
-    const userName = creator?.userName ?? "Użytkownik";
-    const avatarUrl = creator?.avatarUrl ?? null;
+    const userName = creator.userName ?? "Użytkownik";
+    const avatarUrl = creator.avatarUrl ?? null;
 
     // ilu już uczestników (do treści powiadomień)
     const joinedCount = await prisma.eventParticipant.count({
@@ -74,15 +107,11 @@ export const createEventController = async (req: Request, res: Response) => {
         ...(event.minAge != null && event.maxAge != null
           ? { age: { gte: event.minAge, lte: event.maxAge } }
           : {}),
-        id: { not: Number(creatorId) },
+        id: { not: creatorIdNum },
       },
       select: { id: true },
     });
     const userIds = interestedUsers.map((u) => u.id);
-
-    console.log("🔔 Kandydaci do notyfikacji:", {
-      usersMatched: userIds.length,
-    });
 
     // --- wysyłka push (FCM + Expo fallback) ---
     const fullAddress = address || location || "nieokreślona lokalizacja";
@@ -111,7 +140,6 @@ export const createEventController = async (req: Request, res: Response) => {
       )
     );
 
-    // gotowe
     res.status(201).json(event);
   } catch (err) {
     console.error("❌ Błąd tworzenia wydarzenia:", err);
