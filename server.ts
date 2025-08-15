@@ -24,6 +24,9 @@ import settingsRoutes from "./routes/auth.settingsRoutes";
 import notificationPreference from "./routes/notificationPreference";
 import "./services/NotificationServices/lib/firebaseAdmin";
 
+// ⬇️ RANKINGI
+import rankRoutes from "./routes/rankRoutes";
+
 // ===== App / Server =====
 const app = express();
 const server = http.createServer(app);
@@ -31,19 +34,26 @@ initSocket(server);
 
 // ===== Middleware =====
 app.use(express.json({ limit: "1mb" }));
+// (opcjonalnie) jeśli gdzieś używasz application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
+// CORS
 const allowedOrigins =
-  process.env.CORS_ORIGIN?.split(",").map(s => s.trim()).filter(Boolean) ?? ["*"];
+  process.env.CORS_ORIGIN?.split(",").map((s) => s.trim()).filter(Boolean) ?? ["*"];
+
+// UWAGA: credentials + "*" nie jest dozwolone -> wyłączamy credentials, gdy wildcard
+const isWildcard = allowedOrigins.length === 1 && allowedOrigins[0] === "*";
 app.use(
   cors({
-    origin: allowedOrigins,
-    credentials: true,
+    origin: isWildcard ? "*" : allowedOrigins,
+    credentials: !isWildcard, // tylko jeśli nie wildcard
   })
 );
 
 // Logger
 const requestLogger = (req: Request, _res: Response, next: NextFunction) => {
-  console.log(`${req.method} ${req.url}`);
+  const origin = req.headers.origin ?? "-";
+  console.log(`${req.method} ${req.url} :: origin=${origin}`);
   if (Object.keys(req.body ?? {}).length) console.log("Body:", req.body);
   next();
 };
@@ -70,7 +80,7 @@ app.use("/uploads", express.static("uploads"));
 app.use("/api/avatar", AvatarRoutes);
 app.use("/api/user", settingsRoutes);
 app.use("/api/users", notificationPreference);
-app.use("/api/verification", emailVerificationRoutes);
+app.use("/api/rank", rankRoutes);
 
 // 404
 app.use((_req, res) => res.status(404).json({ error: "Nie znaleziono endpointu" }));
@@ -117,7 +127,7 @@ io.on("connection", (socket: Socket) => {
         sender,
         content,
         timestamp: new Date().toISOString(),
-        roomId: eventId, // KLUCZOWE dla klienta DM
+        roomId: eventId,
       };
 
       // zapisz do backlogu

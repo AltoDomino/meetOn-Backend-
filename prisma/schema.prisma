@@ -1,5 +1,5 @@
 // =======================================
-// Prisma schema
+// Prisma schema (with rankings support)
 // =======================================
 
 generator client {
@@ -23,50 +23,58 @@ enum Platform {
 }
 
 model User {
-  id                    Int        @id @default(autoincrement())
-  userName              String     @unique
-  email                 String     @unique
+  id                    Int                   @id @default(autoincrement())
+  userName              String                @unique
+  email                 String                @unique
   password              String
-  createdAt             DateTime   @default(now())
+  createdAt             DateTime              @default(now())
   gender                String?
   avatarUrl             String?
   age                   Int?
   description           String?
-  isVerified            Boolean    @default(false)
+  isVerified            Boolean               @default(false)
   verificationToken     String?
   verificationExpires   DateTime?
 
   // --- Preferencje powiadomień / lokalizacje użytkownika ---
-  notificationRadiusKm  Int        @default(30)     // promień powiadomień w km
-  customNotifyEnabled   Boolean    @default(false)  // czy używać własnej (ręcznie podanej) lokalizacji
-  customNotifyLat       Float?                      // lat dla custom location
-  customNotifyLng       Float?                      // lng dla custom location
-  lastDeviceLat         Float?                      // ostatnia lat z GPS urządzenia
-  lastDeviceLng         Float?                      // ostatnia lng z GPS urządzenia
+  notificationRadiusKm  Int                   @default(30)
+  customNotifyEnabled   Boolean               @default(false)
+  customNotifyLat       Float?
+  customNotifyLng       Float?
+  lastDeviceLat         Float?
+  lastDeviceLng         Float?
+
+  // --- RANKINGI ---
+  rankCompletedEvents   Int                   @default(0) // ile wydarzeń „dociągniętych do końca”
+  rankUniqueLocations   Int                   @default(0) // w ilu unikalnych miejscówkach był
 
   // --- Relacje ---
-  eventsCreated         Event[]    @relation("EventCreator")
+  eventsCreated         Event[]               @relation("EventCreator")
   userInterests         UserInterest[]
   pushTokens            PushToken[]
-  sentRequests          Friendship[] @relation("Requester")
-  receivedRequests      Friendship[] @relation("Recipient")
+  sentRequests          Friendship[]          @relation("Requester")
+  receivedRequests      Friendship[]          @relation("Recipient")
   Notification          Notification[]
   participatedEvents    EventParticipant[]
+
+  // RANKINGI relacje
+  eventCompletions      EventCompletion[]
+  locationVisits        UserLocationVisit[]
 
   @@index([customNotifyLat, customNotifyLng])
   @@index([lastDeviceLat, lastDeviceLng])
 }
 
 model Event {
-  id                 Int       @id @default(autoincrement())
+  id                 Int                  @id @default(autoincrement())
   location           String
   address            String
   startDate          DateTime
   endDate            DateTime
   activity           String
   maxParticipants    Int
-  genderBalance      Boolean   @default(false)
-  createdAt          DateTime  @default(now())
+  genderBalance      Boolean              @default(false)
+  createdAt          DateTime             @default(now())
   minAge             Int?
   maxAge             Int?
   latitude           Float?
@@ -76,13 +84,20 @@ model Event {
   creatorLatAtCreate Float?
   creatorLngAtCreate Float?
 
+  // --- Identyfikatory lokalizacji dla rankingów ---
+  locationId         String?              // np. Google Place ID / OSM ID (opcjonalnie)
+  locationKey        String?              // fallback: znormalizowana nazwa/geohash (tworzysz w backendzie)
+
   // --- Relacje ---
   creatorId          Int
-  creator            User      @relation("EventCreator", fields: [creatorId], references: [id])
+  creator            User                 @relation("EventCreator", fields: [creatorId], references: [id])
   eventParticipants  EventParticipant[]
+  completions        EventCompletion[]    // zaliczenia do rankingu
 
   @@index([latitude, longitude])
   @@index([creatorLatAtCreate, creatorLngAtCreate])
+  @@index([locationId])
+  @@index([locationKey])
 }
 
 model EventParticipant {
@@ -91,12 +106,40 @@ model EventParticipant {
   eventId  Int
   joinedAt DateTime @default(now())
 
-  user  User  @relation(fields: [userId], references: [id])
-  event Event @relation(fields: [eventId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([userId, eventId])
   @@index([userId])
   @@index([eventId])
+}
+
+model EventCompletion {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  eventId     Int
+  locationKey String?
+  createdAt   DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([userId, eventId]) // idempotencja: jedno zaliczenie per (user,event)
+  @@index([userId])
+  @@index([eventId])
+  @@index([locationKey])
+}
+
+model UserLocationVisit {
+  userId      Int
+  locationKey String
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([userId, locationKey]) // unikalna para (user, miejsce)
+  @@index([userId])
+  @@index([locationKey])
 }
 
 model UserInterest {
@@ -104,7 +147,7 @@ model UserInterest {
   userId   Int
   activity String
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([userId])
 }
@@ -113,14 +156,14 @@ model PushToken {
   id         Int           @id @default(autoincrement())
   userId     Int
   token      String
-  tokenType  PushTokenType @default(expo) // domyślnie 'expo'
+  tokenType  PushTokenType @default(expo)
   platform   Platform?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@unique([userId, token])  // wiele urządzeń per user, bez duplikatu tokenu
+  @@unique([userId, token])
   @@index([userId])
 }
 
@@ -130,7 +173,7 @@ model Notification {
   message   String
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([userId])
 }
@@ -142,8 +185,8 @@ model Friendship {
   status      String
   createdAt   DateTime @default(now())
 
-  requester User @relation("Requester", fields: [requesterId], references: [id])
-  recipient User @relation("Recipient", fields: [recipientId], references: [id])
+  requester User @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  recipient User @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([requesterId])
   @@index([recipientId])
