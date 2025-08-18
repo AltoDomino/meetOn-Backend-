@@ -3,7 +3,6 @@ import { PrismaClient, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { sendVerificationEmail } from "./auth.email.service";
-import { HttpError } from "../utils/http-error";
 
 const prisma = new PrismaClient();
 
@@ -28,7 +27,7 @@ export const registerUser = async ({
   // wstępne sprawdzenie (UX) – ale i tak łapiemy P2002 niżej
   const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (existingUser) {
-    throw new HttpError(409, "Użytkownik z tym adresem e-mail już istnieje.");
+    throw new Error( "Użytkownik z tym adresem e-mail już istnieje.");
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
