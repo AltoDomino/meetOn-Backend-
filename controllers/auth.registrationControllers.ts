@@ -2,7 +2,7 @@
 import { NextFunction, Request, Response } from "express";
 import { registerUser } from "../services/auth.registrationserice";
 
-export const postRegister = async (req: Request, res: Response, next: NextFunction) => {
+export const getRegister = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userName, email, password, confirmPassword, gender, age } = req.body ?? {};
 

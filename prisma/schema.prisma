@@ -23,76 +23,76 @@ enum Platform {
 }
 
 model User {
-  id                    Int                   @id @default(autoincrement())
-  userName              String                @unique
-  email                 String                @unique
-  password              String
-  createdAt             DateTime              @default(now())
-  gender                String?
-  avatarUrl             String?
-  age                   Int?
-  description           String?
-  isVerified            Boolean               @default(false)
-  verificationToken     String?
-  verificationExpires   DateTime?
+  id                  Int       @id @default(autoincrement())
+  userName            String    @unique
+  email               String    @unique
+  password            String
+  createdAt           DateTime  @default(now())
+  gender              String?
+  avatarUrl           String?
+  age                 Int?
+  description         String?
+  isVerified          Boolean   @default(false)
+  verificationToken   String?
+  verificationExpires DateTime?
 
   // --- Preferencje powiadomień / lokalizacje użytkownika ---
-  notificationRadiusKm  Int                   @default(30)
-  customNotifyEnabled   Boolean               @default(false)
-  customNotifyLat       Float?
-  customNotifyLng       Float?
-  lastDeviceLat         Float?
-  lastDeviceLng         Float?
+  notificationRadiusKm Int     @default(30)
+  customNotifyEnabled  Boolean @default(false)
+  customNotifyLat      Float?
+  customNotifyLng      Float?
+  lastDeviceLat        Float?
+  lastDeviceLng        Float?
 
   // --- RANKINGI ---
-  rankCompletedEvents   Int                   @default(0) // ile wydarzeń „dociągniętych do końca”
-  rankUniqueLocations   Int                   @default(0) // w ilu unikalnych miejscówkach był
+  rankCompletedEvents Int @default(0) // ile wydarzeń „dociągniętych do końca”
+  rankUniqueLocations Int @default(0) // w ilu unikalnych miejscówkach był
 
   // --- Relacje ---
-  eventsCreated         Event[]               @relation("EventCreator")
-  userInterests         UserInterest[]
-  pushTokens            PushToken[]
-  sentRequests          Friendship[]          @relation("Requester")
-  receivedRequests      Friendship[]          @relation("Recipient")
-  Notification          Notification[]
-  participatedEvents    EventParticipant[]
+  eventsCreated      Event[]            @relation("EventCreator")
+  userInterests      UserInterest[]
+  pushTokens         PushToken[]
+  sentRequests       Friendship[]       @relation("Requester")
+  receivedRequests   Friendship[]       @relation("Recipient")
+  Notification       Notification[]
+  participatedEvents EventParticipant[]
 
   // RANKINGI relacje
-  eventCompletions      EventCompletion[]
-  locationVisits        UserLocationVisit[]
+  eventCompletions EventCompletion[]
+  locationVisits   UserLocationVisit[]
 
   @@index([customNotifyLat, customNotifyLng])
   @@index([lastDeviceLat, lastDeviceLng])
 }
 
 model Event {
-  id                 Int                  @id @default(autoincrement())
-  location           String
-  address            String
-  startDate          DateTime
-  endDate            DateTime
-  activity           String
-  maxParticipants    Int
-  genderBalance      Boolean              @default(false)
-  createdAt          DateTime             @default(now())
-  minAge             Int?
-  maxAge             Int?
-  latitude           Float?
-  longitude          Float?
+  id              Int      @id @default(autoincrement())
+  location        String
+  address         String
+  startDate       DateTime
+  endDate         DateTime
+  activity        String
+  maxParticipants Int
+  genderBalance   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  minAge          Int?
+  maxAge          Int?
+  latitude        Float?
+  longitude       Float?
 
   // --- Snapshot lokalizacji twórcy w momencie tworzenia wydarzenia ---
   creatorLatAtCreate Float?
   creatorLngAtCreate Float?
 
   // --- Identyfikatory lokalizacji dla rankingów ---
-  locationId         String?              // np. Google Place ID / OSM ID (opcjonalnie)
-  locationKey        String?              // fallback: znormalizowana nazwa/geohash (tworzysz w backendzie)
+  locationId  String? // np. Google Place ID / OSM ID (opcjonalnie)
+  locationKey String? // fallback: znormalizowana nazwa/geohash (tworzysz w backendzie)
 
   // --- Relacje ---
-  creatorId          Int
-  creator            User                 @relation("EventCreator", fields: [creatorId], references: [id])
-  eventParticipants  EventParticipant[]
-  completions        EventCompletion[]    // zaliczenia do rankingu
+  creatorId         Int
+  creator           User               @relation("EventCreator", fields: [creatorId], references: [id])
+  eventParticipants EventParticipant[]
+  completions       EventCompletion[] // zaliczenia do rankingu
 
   @@index([latitude, longitude])
   @@index([creatorLatAtCreate, creatorLngAtCreate])
@@ -110,6 +110,7 @@ model EventParticipant {
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([userId, eventId])
+  @@unique([eventId, userId])
   @@index([userId])
   @@index([eventId])
 }
@@ -153,13 +154,13 @@ model UserInterest {
 }
 
 model PushToken {
-  id         Int           @id @default(autoincrement())
-  userId     Int
-  token      String
-  tokenType  PushTokenType @default(expo)
-  platform   Platform?
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  token     String
+  tokenType PushTokenType @default(expo)
+  platform  Platform?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
