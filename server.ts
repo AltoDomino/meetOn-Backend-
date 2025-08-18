@@ -4,6 +4,7 @@ import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import http from "http";
 import type { Socket } from "socket.io";
+import { Prisma } from "@prisma/client";
 import { initSocket, io } from "./socket";
 
 // ===== ROUTES =====
@@ -81,14 +82,36 @@ app.use("/api/avatar", AvatarRoutes);
 app.use("/api/user", settingsRoutes);
 app.use("/api/users", notificationPreference);
 app.use("/api/rank", rankRoutes);
+// (jeśli masz weryfikację e-maili – odkomentuj lub dostosuj ścieżkę)
+app.use("/api/verify", emailVerificationRoutes);
 
 // 404
-app.use((_req, res) => res.status(404).json({ error: "Nie znaleziono endpointu" }));
+app.use((_req, res) => res.status(404).json({ message: "Nie znaleziono endpointu" }));
 
-// Error
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("❌ Błąd serwera:", err);
-  res.status(500).json({ error: "Błąd serwera" });
+// ===== Globalny handler błędów – ZAWSZE JSON =====
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // Prisma: unikalność (np. email)
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+    return res.status(409).json({ message: "Użytkownik z tym adresem e-mail już istnieje." });
+  }
+
+  // Jeśli rzucasz własny błąd z .status i .message (np. HttpError)
+  const hasStatus = typeof err?.status === "number" && err.status >= 400 && err.status <= 599;
+  const status = hasStatus ? err.status : 500;
+
+  // Nie wyświetlaj surowych komunikatów przy 500
+  const message =
+    status === 500
+      ? "Błąd serwera"
+      : typeof err?.message === "string" && err.message.length
+      ? err.message
+      : "Wystąpił błąd";
+
+  if (status === 500) {
+    console.error("❌ Błąd serwera:", err);
+  }
+
+  return res.status(status).json({ message });
 });
 
 // ======= SOCKET.IO with backlog =======
@@ -157,6 +180,8 @@ const PORT = Number(process.env.PORT) || 3000;
 server.listen(PORT, () => {
   console.log(`🚀 Serwer działa na porcie ${PORT}`);
   console.log(
-    `[BOOT] JWT_SECRET present: ${!!process.env.JWT_SECRET} len=${process.env.JWT_SECRET?.length || 0} exp=${process.env.JWT_EXPIRES ?? "7d"}`
+    `[BOOT] JWT_SECRET present: ${!!process.env.JWT_SECRET} len=${
+      process.env.JWT_SECRET?.length || 0
+    } exp=${process.env.JWT_EXPIRES ?? "7d"}`
   );
 });
