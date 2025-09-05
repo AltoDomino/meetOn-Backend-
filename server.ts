@@ -82,8 +82,7 @@ app.use("/api/avatar", AvatarRoutes);
 app.use("/api/user", settingsRoutes);
 app.use("/api/users", notificationPreference);
 app.use("/api/rank", rankRoutes);
-// (jeśli masz weryfikację e-maili – odkomentuj lub dostosuj ścieżkę)
-app.use("/api/verify", emailVerificationRoutes);
+app.use("/api/verification", emailVerificationRoutes);
 
 // 404
 app.use((_req, res) => res.status(404).json({ message: "Nie znaleziono endpointu" }));
