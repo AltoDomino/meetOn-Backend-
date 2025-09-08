@@ -164,7 +164,8 @@ model PushToken {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@unique([userId, token])
+  // jeden user może mieć różne tokeny, ale nie dwa takie same z tym samym typem
+  @@unique([userId, token, tokenType])
   @@index([userId])
 }
 
