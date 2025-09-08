@@ -35,9 +35,20 @@ router.post("/", async (req, res) => {
     // Zapis Expo tokenu
     if (token) {
       const s = await prisma.pushToken.upsert({
-        where: { userId_token: { userId, token } },
-        update: { tokenType: PushTokenType.expo, platform: normPlatform },
-        create: { userId, token, tokenType: PushTokenType.expo, platform: normPlatform },
+        where: {
+          userId_token_tokenType: {
+            userId,
+            token,
+            tokenType: PushTokenType.expo,
+          },
+        },
+        update: { platform: normPlatform },
+        create: {
+          userId,
+          token,
+          tokenType: PushTokenType.expo,
+          platform: normPlatform,
+        },
       });
       saved.push({ kind: "expo", value: token });
       console.log("📨 Expo token zapisany:", token);
@@ -46,9 +57,20 @@ router.post("/", async (req, res) => {
     // Zapis FCM tokenu
     if (fcmToken) {
       const s = await prisma.pushToken.upsert({
-        where: { userId_token: { userId, token: fcmToken } },
-        update: { tokenType: PushTokenType.fcm, platform: normPlatform },
-        create: { userId, token: fcmToken, tokenType: PushTokenType.fcm, platform: normPlatform },
+        where: {
+          userId_token_tokenType: {
+            userId,
+            token: fcmToken,
+            tokenType: PushTokenType.fcm,
+          },
+        },
+        update: { platform: normPlatform },
+        create: {
+          userId,
+          token: fcmToken,
+          tokenType: PushTokenType.fcm,
+          platform: normPlatform,
+        },
       });
       saved.push({ kind: "fcm", value: fcmToken });
       console.log("🔥 FCM token zapisany:", fcmToken);
