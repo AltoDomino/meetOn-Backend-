@@ -29,14 +29,26 @@ export async function sendPushToUsers(
 
     try {
       const res = await admin.messaging().sendEachForMulticast(fcmMessage);
-      res.responses.forEach((r, i) => {
+
+      for (let i = 0; i < res.responses.length; i++) {
+        const r = res.responses[i];
+        const token = fcmTokens[i];
+
         if (!r.success) {
-          console.error("❌ FCM error:", fcmTokens[i], r.error?.code);
-          if (r.error?.code === "messaging/registration-token-not-registered") {
-            prisma.pushToken.deleteMany({ where: { token: fcmTokens[i], tokenType: "fcm" } }).catch(() => {});
+          const code = r.error?.code;
+          console.error(`❌ FCM error [${token.slice(0, 12)}...]:`, code);
+
+          if (
+            code === "messaging/registration-token-not-registered" ||
+            code === "messaging/invalid-argument"
+          ) {
+            // usuń nieważny token z DB
+            await prisma.pushToken.deleteMany({ where: { token, tokenType: "fcm" } });
+            console.log(`🗑️ Usunięto nieważny token FCM: ${token.slice(0, 12)}...`);
           }
         }
-      });
+      }
+
       console.log(`✅ FCM sent: ${res.successCount}/${fcmTokens.length}`);
     } catch (err) {
       console.error("❌ FCM send error:", err);
