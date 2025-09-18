@@ -32,3 +32,9 @@ node_modules/
 
 # Firebase keys
 services/NotificationServices/config/firebase-service-account.json
+# Firebase credentials
+services/NotificationServices/config/temp.json
+services/NotificationServices/config/encoded.txt
+services/NotificationServices/config/firebase-service-account.json
+temp.json
+encoded.txt
