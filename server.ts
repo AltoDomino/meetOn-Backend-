@@ -6,8 +6,6 @@ import http from "http";
 import type { Socket } from "socket.io";
 import { Prisma } from "@prisma/client";
 import { initSocket, io } from "./socket";
-
-// ===== ROUTES =====
 import registerRouter from "./routes/auth.registrationRoutes";
 import emailVerificationRoutes from "./routes/auth.verificationRoutes";
 import loginRouter from "./routes/auth.loginRoutes";
@@ -24,9 +22,8 @@ import AvatarRoutes from "./routes/AvatarRoutes";
 import settingsRoutes from "./routes/auth.settingsRoutes";
 import notificationPreference from "./routes/notificationPreference";
 import "./services/NotificationServices/lib/firebaseAdmin";
-
-// ⬇️ RANKINGI
 import rankRoutes from "./routes/rankRoutes";
+import userRoutes from "./routes/deleteRoutes";
 
 // ===== App / Server =====
 const app = express();
@@ -83,6 +80,7 @@ app.use("/api/user", settingsRoutes);
 app.use("/api/users", notificationPreference);
 app.use("/api/rank", rankRoutes);
 app.use("/api/verification", emailVerificationRoutes);
+app.use("/api/delete-account", userRoutes);
 
 // 404
 app.use((_req, res) => res.status(404).json({ message: "Nie znaleziono endpointu" }));
