@@ -24,6 +24,7 @@ import notificationPreference from "./routes/notificationPreference";
 import "./services/NotificationServices/lib/firebaseAdmin";
 import rankRoutes from "./routes/rankRoutes";
 import userRoutes from "./routes/deleteRoutes";
+import phoneVerificationRoutes from "./routes/phoneVerification.routes";
 
 // ===== App / Server =====
 const app = express();
@@ -81,6 +82,7 @@ app.use("/api/users", notificationPreference);
 app.use("/api/rank", rankRoutes);
 app.use("/api/verification", emailVerificationRoutes);
 app.use("/api/delete-account", userRoutes);
+app.use("/api/phone", phoneVerificationRoutes);
 
 // 404
 app.use((_req, res) => res.status(404).json({ message: "Nie znaleziono endpointu" }));

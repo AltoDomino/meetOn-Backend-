@@ -27,6 +27,10 @@ model User {
   userName            String    @unique
   email               String    @unique
   password            String
+  phoneNumber      String?   @unique
+  isPhoneVerified  Boolean   @default(false)
+  verificationCode String?
+   codeExpiresAt    DateTime?  
   createdAt           DateTime  @default(now())
   gender              String?
   avatarUrl           String?
