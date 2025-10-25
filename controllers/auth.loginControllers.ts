@@ -35,7 +35,9 @@ export const getLogin = async (req: Request, res: Response, next: NextFunction) 
     const { email, password } = req.body;
     const user = await login(email, password);
 
-    if (!user) return res.status(401).json({ message: "Niepoprawny email lub hasło" });
+    if (!user)
+      return res.status(401).json({ message: "Niepoprawny email lub hasło" });
+
     if (!user.isVerified)
       return res.status(403).json({ message: "Zweryfikuj e-mail przed zalogowaniem." });
 
@@ -45,6 +47,8 @@ export const getLogin = async (req: Request, res: Response, next: NextFunction) 
       userId: user.id,
       userName: user.userName,
       email: user.email,
+      isPhoneVerified: user.isPhoneVerified,
+      isRegistrationComplete: user.isRegistrationComplete, // 🔥 Nowe pole
       token,
     });
   } catch (err) {
@@ -52,11 +56,12 @@ export const getLogin = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
-// 📌 Logowanie przez Google (bez pola googleId w DB)
+// 📌 Logowanie przez Google
 export const googleLogin = async (req: Request, res: Response) => {
   try {
     const { id_token } = req.body;
-    if (!id_token) return res.status(400).json({ message: "Brak tokenu Google" });
+    if (!id_token)
+      return res.status(400).json({ message: "Brak tokenu Google" });
 
     const ticket = await googleClient.verifyIdToken({
       idToken: id_token,
@@ -64,19 +69,21 @@ export const googleLogin = async (req: Request, res: Response) => {
     });
 
     const payload = ticket.getPayload();
-    if (!payload?.email) {
+    if (!payload?.email)
       return res.status(400).json({ message: "Brak emaila w tokenie Google" });
-    }
 
     let user = await prisma.user.findUnique({ where: { email: payload.email } });
 
+    // 🔹 Jeśli użytkownik nie istnieje — tworzymy nowy, ale NIEkompletny
     if (!user) {
       user = await prisma.user.create({
         data: {
           email: payload.email,
           userName: payload.name || payload.email.split("@")[0],
-          password: "", // brak hasła dla kont social
+          password: "",
           isVerified: true,
+          isPhoneVerified: false,
+          isRegistrationComplete: false, // 👈 nowy użytkownik musi uzupełnić dane
         },
       });
     }
@@ -87,6 +94,8 @@ export const googleLogin = async (req: Request, res: Response) => {
       userId: user.id,
       userName: user.userName,
       email: user.email,
+      isPhoneVerified: user.isPhoneVerified,
+      isRegistrationComplete: user.isRegistrationComplete,
       token,
     });
   } catch (err) {
@@ -95,21 +104,21 @@ export const googleLogin = async (req: Request, res: Response) => {
   }
 };
 
-// 📌 Logowanie przez Apple (bez pola appleId w DB)
+// 📌 Logowanie przez Apple
 export const appleLogin = async (req: Request, res: Response) => {
   try {
     const { id_token } = req.body;
-    if (!id_token) return res.status(400).json({ message: "Brak tokenu Apple" });
+    if (!id_token)
+      return res.status(400).json({ message: "Brak tokenu Apple" });
 
     const appleData = await appleSignin.verifyIdToken(id_token, {
-      audience: process.env.APPLE_CLIENT_ID, // np. com.meeton.app
+      audience: process.env.APPLE_CLIENT_ID,
       ignoreExpiration: true,
     });
 
     const email = appleData.email || "";
-    if (!email) {
+    if (!email)
       return res.status(400).json({ message: "Brak emaila w tokenie Apple" });
-    }
 
     let user = await prisma.user.findUnique({ where: { email } });
 
@@ -118,8 +127,10 @@ export const appleLogin = async (req: Request, res: Response) => {
         data: {
           email,
           userName: email.split("@")[0],
-          password: "", // brak hasła dla kont social
+          password: "",
           isVerified: true,
+          isPhoneVerified: false,
+          isRegistrationComplete: false, // 👈 nowy użytkownik
         },
       });
     }
@@ -130,6 +141,8 @@ export const appleLogin = async (req: Request, res: Response) => {
       userId: user.id,
       userName: user.userName,
       email: user.email,
+      isPhoneVerified: user.isPhoneVerified,
+      isRegistrationComplete: user.isRegistrationComplete,
       token,
     });
   } catch (err) {
