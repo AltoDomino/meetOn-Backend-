@@ -9,17 +9,22 @@ const fromNumber = process.env.TWILIO_PHONE_NUMBER!;
 
 const client = twilio(accountSid, authToken);
 
-export async function sendVerificationCode(phoneNumber: string) {
+export async function sendVerificationCode(userId: number, phoneNumber: string) {
+  if (!userId) throw new Error("userId is required");
+  if (!phoneNumber) throw new Error("phoneNumber is required");
+
+  // czy numer nie jest już zajęty przez kogoś innego?
+  const existing = await prisma.user.findUnique({ where: { phoneNumber } });
+  if (existing && existing.id !== userId) {
+    throw new Error("Ten numer telefonu jest już przypisany do innego konta");
+  }
+
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min
 
-  await prisma.user.upsert({
-    where: { phoneNumber },
-    update: { verificationCode: code, codeExpiresAt: expiresAt },
-    create: {
-      userName: `temp_${Date.now()}`,
-      email: `${Date.now()}@temp.meeton.app`,
-      password: "TEMP",
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
       phoneNumber,
       verificationCode: code,
       codeExpiresAt: expiresAt,
@@ -35,9 +40,16 @@ export async function sendVerificationCode(phoneNumber: string) {
   return { success: true };
 }
 
-export async function verifyCode(phoneNumber: string, code: string) {
-  const user = await prisma.user.findUnique({ where: { phoneNumber } });
-  if (!user) throw new Error("Użytkownik nie istnieje");
+export async function verifyCode(userId: number, phoneNumber: string, code: string) {
+  if (!userId) throw new Error("userId is required");
+  if (!phoneNumber) throw new Error("phoneNumber is required");
+  if (!code) throw new Error("code is required");
+
+  const user = await prisma.user.findFirst({
+    where: { id: userId, phoneNumber },
+  });
+
+  if (!user) throw new Error("Użytkownik nie istnieje lub numer nie pasuje");
 
   const isValid =
     user.verificationCode === code &&
@@ -47,7 +59,7 @@ export async function verifyCode(phoneNumber: string, code: string) {
   if (!isValid) throw new Error("Nieprawidłowy lub wygasły kod");
 
   await prisma.user.update({
-    where: { phoneNumber },
+    where: { id: userId },
     data: {
       isPhoneVerified: true,
       verificationCode: null,

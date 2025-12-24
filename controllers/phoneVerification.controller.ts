@@ -1,30 +1,30 @@
 import { Request, Response } from "express";
-import {
-  sendVerificationCode,
-  verifyCode,
-} from "../services//phoneVerification";
+import { sendVerificationCode, verifyCode } from "../services/phoneVerification";
 
 export async function sendCodeController(req: Request, res: Response) {
   try {
-    const { phoneNumber } = req.body;
-    if (!phoneNumber) return res.status(400).json({ error: "Brak numeru telefonu" });
+    const { phoneNumber, userId } = req.body;
 
-    const result = await sendVerificationCode(phoneNumber);
-    res.json(result);
+    if (!phoneNumber) return res.status(400).json({ error: "Brak numeru telefonu" });
+    if (!userId) return res.status(400).json({ error: "Brak userId" });
+
+    const result = await sendVerificationCode(Number(userId), String(phoneNumber));
+    return res.json(result);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message ?? "Server error" });
   }
 }
 
 export async function verifyCodeController(req: Request, res: Response) {
   try {
-    const { phoneNumber, code } = req.body;
-    if (!phoneNumber || !code)
-      return res.status(400).json({ error: "Brak danych" });
+    const { phoneNumber, code, userId } = req.body;
 
-    const result = await verifyCode(phoneNumber, code);
-    res.json(result);
+    if (!phoneNumber || !code) return res.status(400).json({ error: "Brak danych" });
+    if (!userId) return res.status(400).json({ error: "Brak userId" });
+
+    const result = await verifyCode(Number(userId), String(phoneNumber), String(code));
+    return res.json(result);
   } catch (err: any) {
-    res.status(400).json({ error: err.message });
+    return res.status(400).json({ error: err.message ?? "Bad request" });
   }
 }
