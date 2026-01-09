@@ -5,6 +5,7 @@ import { completeEventForUser } from "../services/rankService";
 import { saveRatingsForEvent } from "../services/ratingService";
 
 const ratingsBodySchema = z.object({
+  raterId: z.number().int().positive(), // ✅ zamiast req.user
   ratings: z
     .array(
       z.object({
@@ -23,31 +24,22 @@ export async function postEventRatings(req: Request, res: Response) {
       return res.status(400).json({ error: "Invalid eventId" });
     }
 
-    // zakładam, że masz authMiddleware i tam wsadzacie userId do req.user.id
-    const userId = (req as any).user?.id as number | undefined;
-    if (!userId) {
-      return res.status(401).json({ error: "UNAUTHENTICATED" });
-    }
+    const { raterId, ratings } = ratingsBodySchema.parse(req.body);
 
-    const { ratings } = ratingsBodySchema.parse(req.body);
+    // 1) oznacz event jako zakończony dla usera (weryfikuje, czy był uczestnikiem)
+    await completeEventForUser({ userId: raterId, eventId });
 
-    // 1️⃣ najpierw: oznacz event jako zakończony dla tego usera
-    //    (ta funkcja już sprawdza: czy event istnieje, czy jest zakończony,
-    //     czy user był uczestnikiem itd.)
-    await completeEventForUser({ userId, eventId });
-
-    // 2️⃣ dopiero potem: zapisz oceny
+    // 2) zapisz oceny
     await saveRatingsForEvent({
       eventId,
-      raterId: userId,
+      raterId,
       ratings,
     });
 
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (e: any) {
-    const msg = e.message ?? "ERROR";
+    const msg = e?.message ?? "ERROR";
 
-    // jeżeli rankService rzucił te same komunikaty co w postComplete:
     const map: Record<string, number> = {
       EVENT_NOT_FOUND: 404,
       EVENT_NOT_FINISHED: 409,
@@ -55,6 +47,6 @@ export async function postEventRatings(req: Request, res: Response) {
     };
 
     const status = map[msg] ?? 400;
-    res.status(status).json({ error: msg });
+    return res.status(status).json({ error: msg });
   }
 }
