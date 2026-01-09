@@ -3,14 +3,11 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-export const getEventDetailsController = async (
-  req: Request,
-  res: Response
-) => {
+export const getEventDetailsController = async (req: Request, res: Response) => {
   const eventId = Number(req.params.id);
 
-  if (!eventId) {
-    return res.status(400).json({ error: "Brak eventId w adresie URL" });
+  if (!eventId || Number.isNaN(eventId)) {
+    return res.status(400).json({ error: "Brak lub nieprawidłowe eventId w adresie URL" });
   }
 
   try {
@@ -19,6 +16,7 @@ export const getEventDetailsController = async (
       include: {
         creator: {
           select: {
+            id: true, // ✅ KLUCZOWE
             userName: true,
             avatarUrl: true,
             description: true,
@@ -56,11 +54,14 @@ export const getEventDetailsController = async (
     }));
 
     const creator = {
+      id: event.creator.id,
       userName: event.creator.userName,
       avatar: event.creator.avatarUrl,
       description: event.creator.description,
       age: event.creator.age,
     };
+
+
 
     const formattedEvent = {
       id: event.id,
@@ -71,13 +72,12 @@ export const getEventDetailsController = async (
       creator,
       participantsCount: participants.length,
       maxParticipants: event.maxParticipants,
-      participants,
+      participants, 
     };
 
-    res.status(200).json(formattedEvent);
+    return res.status(200).json(formattedEvent);
   } catch (err) {
     console.error("❌ Błąd pobierania szczegółów wydarzenia:", err);
-    res.status(500).json({ error: "Błąd serwera" });
+    return res.status(500).json({ error: "Błąd serwera" });
   }
 };
-

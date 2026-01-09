@@ -8,59 +8,57 @@ datasource db {
 }
 
 model User {
-  id                     Int       @id @default(autoincrement())
-  userName               String    @unique
-  email                  String    @unique
+  id                     Int                 @id @default(autoincrement())
+  userName               String              @unique
+  email                  String              @unique
   password               String
-  createdAt              DateTime  @default(now())
-
+  createdAt              DateTime            @default(now())
   gender                 String?
   avatarUrl              String?
+  age                    Int?
   description            String?
-
-  // 🔥 zamiast "age" – lepiej dateOfBirth
-  dateOfBirth            DateTime?
-  age                    Int?      // możesz usunąć w przyszłości, jeśli niepotrzebne
-
-  // ✅ EMAIL verification
-  isVerified             Boolean   @default(false)
-  verificationToken      String?
+  isVerified             Boolean             @default(false)
   verificationExpires    DateTime?
-
-  // ✅ PHONE verification
-  phoneNumber            String?   @unique
-  verificationCode       String?
-  codeExpiresAt          DateTime?
-  isPhoneVerified        Boolean   @default(false)
-
-  // ✅ Registration flow
-  isRegistrationComplete Boolean   @default(false)
-
-  // Ranking / achievement (zostawiam jak było)
-  rankCompletedEvents    Int       @default(0)
-  rankUniqueLocations    Int       @default(0)
-
-  // Notification System
-  customNotifyEnabled    Boolean   @default(false)
+  verificationToken      String?
+  customNotifyEnabled    Boolean             @default(false)
   customNotifyLat        Float?
   customNotifyLng        Float?
   lastDeviceLat          Float?
   lastDeviceLng          Float?
-  notificationRadiusKm   Int       @default(30)
-
-  // Relacje
-  eventsCreated          Event[]              @relation("EventCreator")
+  notificationRadiusKm   Int                 @default(30)
+  rankCompletedEvents    Int                 @default(0)
+  rankUniqueLocations    Int                 @default(0)
+  codeExpiresAt          DateTime?
+  isPhoneVerified        Boolean             @default(false)
+  phoneNumber            String?             @unique
+  verificationCode       String?
+  isRegistrationComplete Boolean             @default(false)
+  dateOfBirth            DateTime?
+  eventsCreated          Event[]             @relation("EventCreator")
   eventCompletions       EventCompletion[]
   participatedEvents     EventParticipant[]
-  receivedRequests       Friendship[]         @relation("Recipient")
-  sentRequests           Friendship[]         @relation("Requester")
-  notifications          Notification[]       @relation("UserNotifications")
+  receivedRequests       Friendship[]        @relation("Recipient")
+  sentRequests           Friendship[]        @relation("Requester")
+  notifications          Notification[]      @relation("UserNotifications")
   pushTokens             PushToken[]
   userInterests          UserInterest[]
   locationVisits         UserLocationVisit[]
 
   @@index([customNotifyLat, customNotifyLng])
   @@index([lastDeviceLat, lastDeviceLng])
+}
+
+model UserRating {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  raterId   Int      // kto wystawia ocenę
+  rateeId   Int      // kto jest oceniany
+  stars     Int      // 1–5
+  tags      String[] // lista przymiotników (Postgres TEXT[])
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, raterId, rateeId])
 }
 
 
