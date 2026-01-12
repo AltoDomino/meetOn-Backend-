@@ -32,9 +32,6 @@ export async function postEventRatings(req: Request, res: Response) {
 
     const { raterId, ratings } = ratingsBodySchema.parse(req.body);
     const { force } = postQuerySchema.parse(req.query);
-
-    // ✅ BYPASS NA TESTY
-    // Zabezpiecz to choćby ENVem, żeby nie zostało na prodzie
     const allowForce = process.env.ALLOW_RATINGS_FORCE === "true";
 
     if (!(force && allowForce)) {
