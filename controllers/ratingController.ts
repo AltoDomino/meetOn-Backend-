@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { completeEventForUser } from "../services/rankService";
-import { saveRatingsForEvent, getEventRatingsStats } from "../services/ratingService";
+import { saveRatingsForEvent, getEventRatingsStats, getUserRatingsStats } from "../services/ratingService";
 
 const ratingsBodySchema = z.object({
   raterId: z.number().int().positive(),
@@ -62,6 +62,20 @@ export async function getEventRatings(req: Request, res: Response) {
     const { onlyThisEvent } = querySchema.parse(req.query);
     const data = await getEventRatingsStats({ eventId, onlyThisEvent });
 
+    return res.json(data);
+  } catch (e: any) {
+    return res.status(400).json({ error: e?.message ?? "ERROR" });
+  }
+}
+
+export async function getUserRatingsStatsController(req: Request, res: Response) {
+  try {
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: "Invalid userId" });
+    }
+
+    const data = await getUserRatingsStats({ userId });
     return res.json(data);
   } catch (e: any) {
     return res.status(400).json({ error: e?.message ?? "ERROR" });

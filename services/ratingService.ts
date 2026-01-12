@@ -105,3 +105,50 @@ export async function getEventRatingsStats(params: {
 
   return { users };
 }
+
+export async function getUserRatingsStats(params: { userId: number }) {
+  const { userId } = params;
+
+  const ratings = await prisma.userRating.findMany({
+    where: { rateeId: userId },
+    select: { stars: true, tags: true },
+  });
+
+  type Dist = Record<1 | 2 | 3 | 4 | 5, number>;
+  const dist: Dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+  let sum = 0;
+  let count = 0;
+  const tagCounts = new Map<string, number>();
+
+  for (const r of ratings) {
+    const s = r.stars as 1 | 2 | 3 | 4 | 5;
+    if (s >= 1 && s <= 5) {
+      dist[s] += 1;
+      sum += s;
+      count += 1;
+    }
+
+    for (const t of r.tags ?? []) {
+      const key = String(t).trim();
+      if (!key) continue;
+      tagCounts.set(key, (tagCounts.get(key) ?? 0) + 1);
+    }
+  }
+
+  const round1 = (n: number) => Math.round((n + Number.EPSILON) * 10) / 10;
+
+  const tags = Array.from(tagCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([tag, count]) => ({ tag, count }));
+
+  return {
+    userId,
+    stars: {
+      average: count ? round1(sum / count) : 0,
+      count,
+      distribution: dist,
+    },
+    tags,
+  };
+}
