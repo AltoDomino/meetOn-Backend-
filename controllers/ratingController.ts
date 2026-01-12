@@ -14,6 +14,11 @@ const ratingsBodySchema = z.object({
   ).min(1),
 });
 
+// ✅ dodaj schemat query pod force
+const postQuerySchema = z.object({
+  force: z.string().optional().transform((v) => v === "true"),
+});
+
 const querySchema = z.object({
   onlyThisEvent: z.string().optional().transform((v) => v === "true"),
 });
@@ -26,12 +31,19 @@ export async function postEventRatings(req: Request, res: Response) {
     }
 
     const { raterId, ratings } = ratingsBodySchema.parse(req.body);
+    const { force } = postQuerySchema.parse(req.query);
 
-    await completeEventForUser({ userId: raterId, eventId });
+    // ✅ BYPASS NA TESTY
+    // Zabezpiecz to choćby ENVem, żeby nie zostało na prodzie
+    const allowForce = process.env.ALLOW_RATINGS_FORCE === "true";
+
+    if (!(force && allowForce)) {
+      await completeEventForUser({ userId: raterId, eventId });
+    }
 
     await saveRatingsForEvent({ eventId, raterId, ratings });
 
-    return res.json({ success: true });
+    return res.json({ success: true, forced: Boolean(force && allowForce) });
   } catch (e: any) {
     const msg = e?.message ?? "ERROR";
     const map: Record<string, number> = {
@@ -51,7 +63,6 @@ export async function getEventRatings(req: Request, res: Response) {
     }
 
     const { onlyThisEvent } = querySchema.parse(req.query);
-
     const data = await getEventRatingsStats({ eventId, onlyThisEvent });
 
     return res.json(data);
