@@ -12,6 +12,7 @@ export const login = async (email: string, password: string) => {
     throw new Error("Konto nie zostało zweryfikowane.");
   }
 
+  // Konto social (Google/Apple) — brak hasła
   if (!user.password) {
     throw new Error("To konto jest połączone z logowaniem przez Google lub Apple.");
   }
@@ -26,8 +27,13 @@ export const login = async (email: string, password: string) => {
     isVerified: user.isVerified,
     isPhoneVerified: user.isPhoneVerified,
     isRegistrationComplete: user.isRegistrationComplete,
-    avatarUrl: user.avatarUrl,
-    description: user.description,
+
+    // ✅ DODANE: żeby frontend mógł pobrać płeć po loginie
+    gender: user.gender ?? null,
+
+    // ✅ Ujednolicenie nazwy (pole w DB u Ciebie to avatarUrl)
+    avatar: user.avatarUrl ?? null,
+
+    description: user.description ?? "",
   };
 };
-

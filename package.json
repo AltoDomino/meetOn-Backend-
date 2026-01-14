@@ -2,7 +2,9 @@
   "scripts": {
     "build": "tsc",
     "start": "node -r dotenv/config dist/server.js",
-    "dev": "nodemon --watch src --exec \"ts-node -r dotenv/config src/server.ts\""
+    "dev": "nodemon --watch src --exec \"ts-node -r dotenv/config src/server.ts\"",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@prisma/client": "^6.13.0",
@@ -26,7 +28,10 @@
     "tsx": "^4.19.4",
     "twilio": "^5.10.3",
     "uuid": "^11.1.0",
-    "zod": "^4.0.17"
+    "zod": "^4.0.17",
+    "expo": "~53.0.24",
+    "react": "19.0.0",
+    "react-native": "0.79.6"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
@@ -43,5 +48,7 @@
     "prisma": "^6.13.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
-  }
+  },
+  "name": "meetOn-Backend-",
+  "version": "1.0.0"
 }

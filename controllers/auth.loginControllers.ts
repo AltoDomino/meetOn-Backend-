@@ -1,4 +1,3 @@
-// controllers/auth.loginController.ts
 import { NextFunction, Request, Response } from "express";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { login } from "../services/auth.loginService";
@@ -7,12 +6,17 @@ import { OAuth2Client } from "google-auth-library";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client();
+
+const GOOGLE_AUDIENCES = [
+  process.env.GOOGLE_CLIENT_ID, // web
+  process.env.GOOGLE_IOS_CLIENT_ID,
+  process.env.GOOGLE_ANDROID_CLIENT_ID,
+].filter(Boolean) as string[];
 
 function generateJwt(user: any) {
-  if (!process.env.JWT_SECRET) {
-    throw new Error("JWT_SECRET is missing");
-  }
+  if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is missing");
+
   const secret = process.env.JWT_SECRET;
   const DEFAULT_EXPIRES_IN = "7d" as const;
 
@@ -33,22 +37,26 @@ function generateJwt(user: any) {
 export const getLogin = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body;
+
     const user = await login(email, password);
 
-    if (!user)
-      return res.status(401).json({ message: "Niepoprawny email lub hasło" });
-
+    if (!user) return res.status(401).json({ message: "Niepoprawny email lub hasło" });
     if (!user.isVerified)
       return res.status(403).json({ message: "Zweryfikuj e-mail przed zalogowaniem." });
 
     const token = generateJwt(user);
 
+    // ✅ TS-safe dostęp (nawet jeśli login() zwraca typ bez gender)
+    const gender = (user as any).gender ?? null;
+
     return res.status(200).json({
       userId: user.id,
       userName: user.userName,
       email: user.email,
+      gender, // ✅ DODANE
+
       isPhoneVerified: user.isPhoneVerified,
-      isRegistrationComplete: user.isRegistrationComplete, // 🔥 Nowe pole
+      isRegistrationComplete: user.isRegistrationComplete,
       token,
     });
   } catch (err) {
@@ -60,21 +68,25 @@ export const getLogin = async (req: Request, res: Response, next: NextFunction) 
 export const googleLogin = async (req: Request, res: Response) => {
   try {
     const { id_token } = req.body;
-    if (!id_token)
-      return res.status(400).json({ message: "Brak tokenu Google" });
+    if (!id_token) return res.status(400).json({ message: "Brak tokenu Google" });
+
+    if (GOOGLE_AUDIENCES.length === 0) {
+      return res.status(500).json({
+        message:
+          "Brak konfiguracji GOOGLE_*_CLIENT_ID (GOOGLE_CLIENT_ID / GOOGLE_IOS_CLIENT_ID / GOOGLE_ANDROID_CLIENT_ID).",
+      });
+    }
 
     const ticket = await googleClient.verifyIdToken({
       idToken: id_token,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: GOOGLE_AUDIENCES,
     });
 
     const payload = ticket.getPayload();
-    if (!payload?.email)
-      return res.status(400).json({ message: "Brak emaila w tokenie Google" });
+    if (!payload?.email) return res.status(400).json({ message: "Brak emaila w tokenie Google" });
 
     let user = await prisma.user.findUnique({ where: { email: payload.email } });
 
-    // 🔹 Jeśli użytkownik nie istnieje — tworzymy nowy, ale NIEkompletny
     if (!user) {
       user = await prisma.user.create({
         data: {
@@ -83,24 +95,30 @@ export const googleLogin = async (req: Request, res: Response) => {
           password: "",
           isVerified: true,
           isPhoneVerified: false,
-          isRegistrationComplete: false, // 👈 nowy użytkownik musi uzupełnić dane
+          isRegistrationComplete: false,
+          // gender: null -> uzupełni w CompleteRegistration
         },
       });
     }
 
     const token = generateJwt(user);
 
-    res.json({
+    return res.json({
       userId: user.id,
       userName: user.userName,
       email: user.email,
+      gender: user.gender ?? null, // ✅ DODANE
+
       isPhoneVerified: user.isPhoneVerified,
       isRegistrationComplete: user.isRegistrationComplete,
       token,
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Google login error:", err);
-    res.status(400).json({ message: "Google token invalid" });
+    return res.status(400).json({
+      message: "Google token invalid",
+      details: typeof err?.message === "string" ? err.message : String(err),
+    });
   }
 };
 
@@ -108,8 +126,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 export const appleLogin = async (req: Request, res: Response) => {
   try {
     const { id_token } = req.body;
-    if (!id_token)
-      return res.status(400).json({ message: "Brak tokenu Apple" });
+    if (!id_token) return res.status(400).json({ message: "Brak tokenu Apple" });
 
     const appleData = await appleSignin.verifyIdToken(id_token, {
       audience: process.env.APPLE_CLIENT_ID,
@@ -117,8 +134,7 @@ export const appleLogin = async (req: Request, res: Response) => {
     });
 
     const email = appleData.email || "";
-    if (!email)
-      return res.status(400).json({ message: "Brak emaila w tokenie Apple" });
+    if (!email) return res.status(400).json({ message: "Brak emaila w tokenie Apple" });
 
     let user = await prisma.user.findUnique({ where: { email } });
 
@@ -130,23 +146,28 @@ export const appleLogin = async (req: Request, res: Response) => {
           password: "",
           isVerified: true,
           isPhoneVerified: false,
-          isRegistrationComplete: false, // 👈 nowy użytkownik
+          isRegistrationComplete: false,
         },
       });
     }
 
     const token = generateJwt(user);
 
-    res.json({
+    return res.json({
       userId: user.id,
       userName: user.userName,
       email: user.email,
+      gender: user.gender ?? null, // ✅ DODANE
+
       isPhoneVerified: user.isPhoneVerified,
       isRegistrationComplete: user.isRegistrationComplete,
       token,
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Apple login error:", err);
-    res.status(400).json({ message: "Apple token invalid" });
+    return res.status(400).json({
+      message: "Apple token invalid",
+      details: typeof err?.message === "string" ? err.message : String(err),
+    });
   }
 };
