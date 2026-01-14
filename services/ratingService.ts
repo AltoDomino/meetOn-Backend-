@@ -20,7 +20,7 @@ export async function saveRatingsForEvent(params: {
 }) {
   const { eventId, raterId, ratings } = params;
 
-  // upsert bo masz @@unique([eventId, raterId, rateeId])
+  // createMany + skipDuplicates (masz @@unique([eventId, raterId, rateeId]))
   await prisma.userRating.createMany({
     data: ratings.map((r) => ({
       eventId,
@@ -41,15 +41,53 @@ export async function getEventRatingsStats(params: {
 }) {
   const { eventId, onlyThisEvent = false } = params;
 
-  // ⬇️ DOPASUJ DO SWOJEJ TABELI UCZESTNIKÓW
+  // 1) event + creatorId (creatorId = User.id)
+  const ev = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { creatorId: true },
+  });
+
+  if (!ev) return { users: [] as any[] };
+
+  // 2) uczestnicy z EventParticipant (userId = User.id)
   const participants = await prisma.eventParticipant.findMany({
     where: { eventId },
     select: { userId: true },
   });
 
-  const userIds = participants.map((p) => p.userId);
+  const participantUserIds = participants
+    .map((p) => Number(p.userId))
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  // 3) wszyscy ocenieni w tym evencie (rateeId = User.id)
+  // (nawet jeśli EventParticipant jest puste lub incomplete)
+  const ratedRows = await prisma.userRating.findMany({
+    where: { eventId },
+    select: { rateeId: true },
+  });
+
+  const ratedUserIds = ratedRows
+    .map((r) => Number(r.rateeId))
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  // ✅ union: creator + participants + rated
+  const idSet = new Set<number>();
+  idSet.add(Number(ev.creatorId));
+  for (const id of participantUserIds) idSet.add(id);
+  for (const id of ratedUserIds) idSet.add(id);
+
+  const userIds = Array.from(idSet.values()).filter((n) => n > 0);
+
+  // ✅ LOGI (zostaw na czas testów)
+  console.log("[getEventRatingsStats] eventId:", eventId);
+  console.log("[getEventRatingsStats] creatorId:", ev.creatorId);
+  console.log("[getEventRatingsStats] participantUserIds:", participantUserIds);
+  console.log("[getEventRatingsStats] ratedUserIds:", ratedUserIds);
+  console.log("[getEventRatingsStats] FINAL userIds:", userIds);
+
   if (userIds.length === 0) return { users: [] as any[] };
 
+  // ✅ pobieramy wszystkie oceny dla tych userów
   const ratings = await prisma.userRating.findMany({
     where: {
       rateeId: { in: userIds },
@@ -89,7 +127,11 @@ export async function getEventRatingsStats(params: {
     const agg = byUser.get(uid);
 
     if (!agg) {
-      return { userId: uid, stars: { average: 0, count: 0, distribution: emptyDist() }, tags: [] };
+      return {
+        userId: uid,
+        stars: { average: 0, count: 0, distribution: emptyDist() },
+        tags: [],
+      };
     }
 
     const tags = Array.from(agg.tagCounts.entries())
@@ -98,7 +140,11 @@ export async function getEventRatingsStats(params: {
 
     return {
       userId: uid,
-      stars: { average: agg.count ? round1(agg.sum / agg.count) : 0, count: agg.count, distribution: agg.dist },
+      stars: {
+        average: agg.count ? round1(agg.sum / agg.count) : 0,
+        count: agg.count,
+        distribution: agg.dist,
+      },
       tags,
     };
   });
@@ -114,7 +160,6 @@ export async function getUserRatingsStats(params: { userId: number }) {
     select: { stars: true, tags: true },
   });
 
-  type Dist = Record<1 | 2 | 3 | 4 | 5, number>;
   const dist: Dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
   let sum = 0;
@@ -135,8 +180,6 @@ export async function getUserRatingsStats(params: { userId: number }) {
       tagCounts.set(key, (tagCounts.get(key) ?? 0) + 1);
     }
   }
-
-  const round1 = (n: number) => Math.round((n + Number.EPSILON) * 10) / 10;
 
   const tags = Array.from(tagCounts.entries())
     .sort((a, b) => b[1] - a[1])
