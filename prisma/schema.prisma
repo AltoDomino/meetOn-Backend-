@@ -6,7 +6,10 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+}
 model User {
   id                     Int                 @id @default(autoincrement())
   userName               String              @unique
@@ -165,17 +168,25 @@ model Notification {
 }
 
 model Friendship {
-  id          Int      @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   requesterId Int
   recipientId Int
-  status      String
-  createdAt   DateTime @default(now())
-  recipient   User     @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  requester   User     @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
 
-  @@index([requesterId])
-  @@index([recipientId])
+  recipient   User @relation("Recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  requester   User @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+
+  // ✅ blokuje duplikaty w tej samej kolejności requester->recipient
+  @@unique([requesterId, recipientId])
+
+  // ✅ przyspiesza Twoje query:
+  // getFriendRequests: recipientId + status
+  // getFriends: requesterId/recipientId + status
+  @@index([recipientId, status])
+  @@index([requesterId, status])
 }
+
 
 enum PushTokenType {
   expo
