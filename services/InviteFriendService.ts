@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -6,37 +6,59 @@ const prisma = new PrismaClient();
  * Wyślij zaproszenie do znajomych (PENDING)
  */
 export const sendFriendRequest = async (senderId: number, receiverName: string) => {
+  const name = receiverName.trim();
+  if (name.length < 3) throw new Error("Nazwa użytkownika jest za krótka.");
+
   const receiver = await prisma.user.findUnique({
-    where: { userName: receiverName },
+    where: { userName: name },
   });
 
   if (!receiver) throw new Error("Użytkownik nie istnieje");
-
-  if (receiver.id === senderId) {
-    throw new Error("Nie możesz wysłać zaproszenia do siebie");
-  }
+  if (receiver.id === senderId) throw new Error("Nie możesz wysłać zaproszenia do siebie");
 
   // ✅ blokada duplikatów (PENDING/ACCEPTED w obie strony)
   const existing = await prisma.friendship.findFirst({
     where: {
       OR: [
-        { requesterId: senderId, recipientId: receiver.id },
-        { requesterId: receiver.id, recipientId: senderId },
+        { requesterId: senderId, recipientId: receiver.id }, // ja -> on
+        { requesterId: receiver.id, recipientId: senderId }, // on -> ja
       ],
     },
-    select: { id: true, status: true },
+    select: { id: true, status: true, requesterId: true, recipientId: true },
   });
 
-  if (existing?.status === "PENDING") throw new Error("Zaproszenie już istnieje.");
-  if (existing?.status === "ACCEPTED") throw new Error("Jesteście już znajomymi.");
+  if (existing) {
+    if (existing.status === "ACCEPTED") {
+      throw new Error("Jesteście już znajomymi.");
+    }
 
-  return await prisma.friendship.create({
-    data: {
-      requesterId: senderId,
-      recipientId: receiver.id,
-      status: "PENDING",
-    },
-  });
+    // status = PENDING
+    if (existing.requesterId === senderId) {
+      // Ja już wysłałem zaproszenie
+      throw new Error("Zaproszenie już zostało wysłane i oczekuje na akceptację.");
+    } else {
+      // On już wysłał zaproszenie do mnie
+      throw new Error("Masz już zaproszenie od tego użytkownika. Zaakceptuj je w 'Zaproszenia oczekujące'.");
+      // (Opcja alternatywna: auto-accept — jeśli chcesz, powiem jak)
+    }
+  }
+
+  // ✅ odporność na race condition: jeśli 2 requesty wejdą naraz, unique zablokuje duplikat
+  try {
+    return await prisma.friendship.create({
+      data: {
+        requesterId: senderId,
+        recipientId: receiver.id,
+        status: "PENDING",
+      },
+    });
+  } catch (e: any) {
+    // Prisma unique constraint violation
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      throw new Error("Zaproszenie do tej osoby już istnieje.");
+    }
+    throw e;
+  }
 };
 
 /**
@@ -105,8 +127,6 @@ export const getFriendRequests = async (userId: number) => {
 
 /**
  * ✅ USUŃ ZNAJOMEGO (ACCEPTED) – działa w obie strony relacji
- * userId = aktualny użytkownik
- * friendId = znajomy do usunięcia
  */
 export const removeFriend = async (userId: number, friendId: number) => {
   if (!userId || !friendId) throw new Error("Brak danych.");
@@ -128,8 +148,6 @@ export const removeFriend = async (userId: number, friendId: number) => {
 
 /**
  * ✅ ODRZUĆ ZAPROSZENIE (recipient usuwa PENDING)
- * userId = recipientId (ten co odrzuca)
- * requesterId = senderId (ten co wysłał)
  */
 export const rejectFriendRequest = async (userId: number, requesterId: number) => {
   if (!userId || !requesterId) throw new Error("Brak danych.");
@@ -147,9 +165,7 @@ export const rejectFriendRequest = async (userId: number, requesterId: number) =
 };
 
 /**
- * ✅ (OPCJONALNIE) ANULUJ ZAPROSZENIE (requester usuwa PENDING)
- * userId = requesterId (ten co anuluję)
- * recipientId = odbiorca
+ * ✅ ANULUJ ZAPROSZENIE (requester usuwa PENDING)
  */
 export const cancelFriendRequest = async (userId: number, recipientId: number) => {
   if (!userId || !recipientId) throw new Error("Brak danych.");
