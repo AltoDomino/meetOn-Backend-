@@ -54,7 +54,7 @@ export async function sendResetEmail(to: string, resetLink: string) {
     console.log("================ MAIL SERVICE / END OK ================\n");
     return result;
   } catch (e: any) {
-    console.error("❌ MAIL SERVICE / ERROR", {
+    console.error("❌ MAIL SERVICE / EROR", {
       time: now(),
       message: e?.message ?? String(e),
       name: e?.name,
