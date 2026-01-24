@@ -37,6 +37,11 @@ model User {
   verificationCode       String?
   isRegistrationComplete Boolean             @default(false)
   dateOfBirth            DateTime?
+
+  // ✅ RESET HASŁA
+  resetTokenHash         String?
+  resetTokenExpiresAt    DateTime?
+
   eventsCreated          Event[]             @relation("EventCreator")
   eventCompletions       EventCompletion[]
   participatedEvents     EventParticipant[]
@@ -49,7 +54,11 @@ model User {
 
   @@index([customNotifyLat, customNotifyLng])
   @@index([lastDeviceLat, lastDeviceLng])
+
+  // ✅ opcjonalnie: przy resetowaniu hasła będziesz szukał po hash'u tokena
+  @@index([resetTokenHash])
 }
+
 
 model UserRating {
   id        Int      @id @default(autoincrement())

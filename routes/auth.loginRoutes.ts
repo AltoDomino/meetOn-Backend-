@@ -1,5 +1,9 @@
 import express from "express";
-import { getLogin, googleLogin, appleLogin } from "../controllers/auth.loginControllers";
+import {
+  getLogin,
+  googleLogin,
+  appleLogin,
+} from "../controllers/auth.loginControllers";
 import { completeRegistration } from "../controllers/completeRegistrationController";
 
 const router = express.Router();
@@ -15,5 +19,6 @@ router.post("/apple", appleLogin);
 
 // 📌 Uzupełnianie profilu po logowaniu przez Google/Apple
 router.post("/complete-registration", completeRegistration);
+
 
 export default router;
