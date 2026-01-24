@@ -9,14 +9,43 @@ const maskEmail = (email: string) => {
   return `${user}@${d}`;
 };
 
+const maskKey = (key?: string | null) => {
+  if (!key) return null;
+  if (key.length <= 10) return "***";
+  return `${key.slice(0, 6)}…${key.slice(-4)} (len=${key.length})`;
+};
+
+const normalizeResendResult = (result: any) => {
+  // Resend SDK często zwraca { data, error } zamiast rzucać wyjątek
+  const data = result?.data ?? null;
+  const error = result?.error ?? null;
+
+  return {
+    hasData: !!data,
+    hasError: !!error,
+    data: data ? { id: data?.id ?? null } : null,
+    error: error
+      ? {
+          statusCode: error?.statusCode ?? null,
+          message: error?.message ?? null,
+          name: error?.name ?? null,
+        }
+      : null,
+  };
+};
+
 export async function sendResetEmail(to: string, resetLink: string) {
   console.log("\n================ MAIL SERVICE / START ================");
-  console.log({
+  console.log("MAIL SERVICE / ENV CHECK", {
+    time: now(),
+    MAIL_FROM: process.env.MAIL_FROM ?? null,
+    RESEND_API_KEY: maskKey(process.env.RESEND_API_KEY ?? null),
+  });
+
+  console.log("MAIL SERVICE / INPUT", {
     time: now(),
     to: maskEmail(to),
-    hasKey: !!process.env.RESEND_API_KEY,
-    mailFrom: process.env.MAIL_FROM ?? null,
-    linkPreview: String(resetLink).slice(0, 50) + "…",
+    linkPreview: String(resetLink).slice(0, 80) + "…",
   });
 
   if (!process.env.RESEND_API_KEY) {
@@ -45,21 +74,45 @@ export async function sendResetEmail(to: string, resetLink: string) {
       `,
     });
 
-    // Resend zwykle zwraca obiekt z "data" i "error" (zależy od wersji SDK)
-    console.log("MAIL SERVICE / RESEND RESULT", {
+    const normalized = normalizeResendResult(result);
+
+    console.log("MAIL SERVICE / RESEND RAW RESULT", {
       time: now(),
       result,
     });
 
-    console.log("================ MAIL SERVICE / END OK ================\n");
+    console.log("MAIL SERVICE / RESEND NORMALIZED", {
+      time: now(),
+      ...normalized,
+    });
+
+    if (normalized.hasError) {
+      // ważne: gdy Resend zwraca error w result, a nie throw
+      console.error("❌ MAIL SERVICE / RESEND returned error", {
+        time: now(),
+        ...normalized.error,
+      });
+    }
+
+    console.log("================ MAIL SERVICE / END ================\n");
     return result;
   } catch (e: any) {
-    console.error("❌ MAIL SERVICE / EROR", {
+    // gdy SDK rzuci wyjątek
+    console.error("❌ MAIL SERVICE / THROW", {
       time: now(),
       message: e?.message ?? String(e),
-      name: e?.name,
-      stack: e?.stack,
+      name: e?.name ?? null,
+      statusCode: e?.statusCode ?? null,
+      stack: e?.stack ?? null,
     });
+
+    // czasem response siedzi w e.response / e.error
+    console.error("❌ MAIL SERVICE / THROW DETAILS", {
+      time: now(),
+      response: e?.response ?? null,
+      error: e?.error ?? null,
+    });
+
     console.log("================ MAIL SERVICE / END ERROR ================\n");
     throw e;
   }
