@@ -5,7 +5,7 @@ import {
   appleLogin,
 } from "../controllers/auth.loginControllers";
 import { completeRegistration } from "../controllers/completeRegistrationController";
-import { forgotPasswordController } from "../controllers/forgotPasswordController"; // dopasuj nazwę pliku  // jeśli dodasz
+import { forgotPasswordController, resetPasswordController } from "../controllers/forgotPasswordController"; // dopasuj nazwę pliku  // jeśli dodasz
 
 const router = express.Router();
 
@@ -22,4 +22,7 @@ router.post("/apple", appleLogin);
 router.post("/complete-registration", completeRegistration);
 
 router.post("/forgot-password", forgotPasswordController);
+
+router.post("/reset-password", resetPasswordController);
+
 export default router;

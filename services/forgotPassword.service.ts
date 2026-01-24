@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
+import { sendResetEmail } from "./mail.service";
 
 const prisma = new PrismaClient();
 
@@ -13,20 +14,13 @@ function sha256(input: string) {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
-// ✅ docelowo podmień na nodemailer/resend/sendgrid
-async function sendResetEmail(to: string, resetLink: string) {
-  console.log("📧 RESET PASSWORD EMAIL");
-  console.log("TO:", to);
-  console.log("LINK:", resetLink);
-}
-
 export const forgotPasswordService = async ({ email }: ForgotPasswordInput) => {
   const user = await prisma.user.findUnique({
     where: { email },
     select: { id: true, email: true },
   });
 
-  // nie zdradzamy
+  // ✅ nie zdradzamy czy user istnieje
   if (!user) return;
 
   const token = crypto.randomBytes(32).toString("hex");
@@ -41,7 +35,7 @@ export const forgotPasswordService = async ({ email }: ForgotPasswordInput) => {
     },
   });
 
-  // Deep link do apki (upewnij się, że obsługujesz go po stronie RN!)
+  // 🔗 deep link do aplikacji
   const deepLink = `meeton://reset-password?token=${token}`;
 
   await sendResetEmail(user.email, deepLink);
