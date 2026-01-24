@@ -5,6 +5,7 @@ import {
   appleLogin,
 } from "../controllers/auth.loginControllers";
 import { completeRegistration } from "../controllers/completeRegistrationController";
+import { forgotPasswordController } from "../controllers/forgotPasswordController"; // dopasuj nazwę pliku  // jeśli dodasz
 
 const router = express.Router();
 
@@ -20,5 +21,5 @@ router.post("/apple", appleLogin);
 // 📌 Uzupełnianie profilu po logowaniu przez Google/Apple
 router.post("/complete-registration", completeRegistration);
 
-
+router.post("/forgot-password", forgotPasswordController);
 export default router;
