@@ -84,7 +84,8 @@ app.use("/api/rank", rankRoutes);
 app.use("/api/verification", emailVerificationRoutes);
 app.use("/api/delete-account", userRoutes);
 app.use("/api/phone", phoneVerificationRoutes);
-app.use("/api", ratingRoutes);
+app.use("/api/login", loginRouter);
+
 // 404
 app.use((_req, res) => res.status(404).json({ message: "Nie znaleziono endpointu" }));
 
