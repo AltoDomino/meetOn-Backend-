@@ -1,3 +1,4 @@
+// src/services/mail.service.ts
 import { Resend } from "resend";
 
 const now = () => new Date().toISOString();
@@ -16,7 +17,6 @@ const maskKey = (key?: string | null) => {
 };
 
 const normalizeResendResult = (result: any) => {
-  // Resend SDK często zwraca { data, error } zamiast rzucać wyjątek
   const data = result?.data ?? null;
   const error = result?.error ?? null;
 
@@ -34,18 +34,23 @@ const normalizeResendResult = (result: any) => {
   };
 };
 
+/**
+ * Wysyła mail do resetu hasła.
+ * Uwaga: resetLink ma być HTTP(S) do strony (Vercel), żeby był klikalny w Gmailu.
+ */
 export async function sendResetEmail(to: string, resetLink: string) {
   console.log("\n================ MAIL SERVICE / START ================");
   console.log("MAIL SERVICE / ENV CHECK", {
     time: now(),
     MAIL_FROM: process.env.MAIL_FROM ?? null,
+    FRONTEND_URL: process.env.FRONTEND_URL ?? null,
     RESEND_API_KEY: maskKey(process.env.RESEND_API_KEY ?? null),
   });
 
   console.log("MAIL SERVICE / INPUT", {
     time: now(),
     to: maskEmail(to),
-    linkPreview: String(resetLink).slice(0, 80) + "…",
+    linkPreview: String(resetLink).slice(0, 90) + "…",
   });
 
   if (!process.env.RESEND_API_KEY) {
@@ -65,12 +70,23 @@ export async function sendResetEmail(to: string, resetLink: string) {
       to,
       subject: "Reset hasła – meetOn",
       html: `
-        <h2>Reset hasła</h2>
-        <p>Kliknij w link poniżej, aby ustawić nowe hasło:</p>
-        <p><a href="${resetLink}">${resetLink}</a></p>
-        <p>Link ważny 30 minut.</p>
-        <br/>
-        <small>Jeśli to nie Ty, zignoruj tę wiadomość.</small>
+        <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+          <h2>Reset hasła</h2>
+          <p>Kliknij w przycisk poniżej, aby ustawić nowe hasło:</p>
+
+          <p style="margin: 18px 0;">
+            <a href="${resetLink}"
+               style="display:inline-block;padding:12px 16px;text-decoration:none;border-radius:10px;background:#3A8FB7;color:#ffffff;font-weight:700;">
+              Ustaw nowe hasło
+            </a>
+          </p>
+
+          <p>Jeśli przycisk nie działa, skopiuj i wklej ten link do przeglądarki:</p>
+          <p><a href="${resetLink}">${resetLink}</a></p>
+
+          <p style="margin-top:18px;">Link ważny 30 minut.</p>
+          <small>Jeśli to nie Ty, zignoruj tę wiadomość.</small>
+        </div>
       `,
     });
 
@@ -87,7 +103,6 @@ export async function sendResetEmail(to: string, resetLink: string) {
     });
 
     if (normalized.hasError) {
-      // ważne: gdy Resend zwraca error w result, a nie throw
       console.error("❌ MAIL SERVICE / RESEND returned error", {
         time: now(),
         ...normalized.error,
@@ -97,7 +112,6 @@ export async function sendResetEmail(to: string, resetLink: string) {
     console.log("================ MAIL SERVICE / END ================\n");
     return result;
   } catch (e: any) {
-    // gdy SDK rzuci wyjątek
     console.error("❌ MAIL SERVICE / THROW", {
       time: now(),
       message: e?.message ?? String(e),
@@ -106,7 +120,6 @@ export async function sendResetEmail(to: string, resetLink: string) {
       stack: e?.stack ?? null,
     });
 
-    // czasem response siedzi w e.response / e.error
     console.error("❌ MAIL SERVICE / THROW DETAILS", {
       time: now(),
       response: e?.response ?? null,

@@ -13,7 +13,7 @@ const RESET_TOKEN_TTL_MIN = 30;
 const now = () => new Date().toISOString();
 
 const maskEmail = (email: string) => {
-  const [user, domain] = email.split("@");
+  const [user, domain] = String(email || "").split("@");
   if (!domain) return "***";
   const u = user.length <= 2 ? `${user[0] ?? ""}*` : `${user.slice(0, 2)}***`;
   return `${u}@${domain}`;
@@ -38,6 +38,7 @@ export const forgotPasswordService = async ({ email }: ForgotPasswordInput) => {
     email: maskEmail(email),
     hasResendKey: !!process.env.RESEND_API_KEY,
     mailFrom: process.env.MAIL_FROM ?? null,
+    frontendUrl: process.env.FRONTEND_URL ?? null,
     ttlMin: RESET_TOKEN_TTL_MIN,
   });
 
@@ -88,15 +89,17 @@ export const forgotPasswordService = async ({ email }: ForgotPasswordInput) => {
       resetTokenExpiresAt: upd.resetTokenExpiresAt?.toISOString() ?? null,
     });
 
-    // 🔗 deep link do aplikacji
-    const deepLink = `meeton://reset-password?token=${token}`;
+    // ✅ KLIKALNY LINK (Vercel / www) zamiast meeton://
+    const frontend = (process.env.FRONTEND_URL || "https://meeton.dduraj.com").replace(/\/+$/, "");
+    const webResetUrl = `${frontend}/reset-password?token=${encodeURIComponent(token)}`;
+
     console.log("FORGOT SERVICE / SENDING EMAIL", {
       time: now(),
       to: maskEmail(user.email),
-      linkPreview: deepLink.slice(0, 40) + "…",
+      linkPreview: webResetUrl.slice(0, 80) + "…",
     });
 
-    const sendResult = await sendResetEmail(user.email, deepLink);
+    const sendResult = await sendResetEmail(user.email, webResetUrl);
 
     console.log("FORGOT SERVICE / EMAIL SENT RESULT", {
       time: now(),
@@ -118,7 +121,7 @@ export const forgotPasswordService = async ({ email }: ForgotPasswordInput) => {
       time: now(),
       ms: Date.now() - start,
     });
-    throw e; // ważne w debug, żeby Render pokazał realny błąd
+    throw e;
   }
 };
 
