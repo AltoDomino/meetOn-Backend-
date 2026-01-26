@@ -90,8 +90,12 @@ export const forgotPasswordService = async ({ email }: ForgotPasswordInput) => {
     });
 
     // ✅ KLIKALNY LINK (Vercel / www) zamiast meeton://
-const backendBase = (process.env.BACKEND_URL || "https://meeton-backend-ffmo.onrender.com").replace(/\/+$/, "");
-const webResetUrl = `${backendBase}/reset-password?token=${encodeURIComponent(token)}`;
+    const backendBase = (
+      process.env.BACKEND_PUBLIC_URL ||
+      "https://meeton-backend-ffmo.onrender.com"
+    ).replace(/\/+$/, "");
+
+    const webResetUrl = `${backendBase}/api/login/reset-password?token=${encodeURIComponent(token)}`;
 
     console.log("FORGOT SERVICE / SENDING EMAIL", {
       time: now(),
