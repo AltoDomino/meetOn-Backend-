@@ -59,7 +59,6 @@ const requestLogger = (req: Request, _res: Response, next: NextFunction) => {
 };
 app.use(requestLogger);
 
-// Healthcheck
 app.get("/health", (_req, res) => {
   res.status(200).json({ ok: true, uptime: process.uptime() });
 });
