@@ -26,7 +26,6 @@ import rankRoutes from "./routes/rankRoutes";
 import userRoutes from "./routes/deleteRoutes";
 import phoneVerificationRoutes from "./routes/phoneVerification.routes";
 import ratingRoutes from "./routes/ratingRoutes";
-
 // ===== App / Server =====
 const app = express();
 const server = http.createServer(app);
