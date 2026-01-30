@@ -3,6 +3,7 @@ import { deleteAccountController } from "../controllers/deleteControllers";
 
 const router = Router();
 
-router.delete("/account", deleteAccountController);
+router.delete("/account/:userId", deleteAccountController);
+
 
 export default router;
