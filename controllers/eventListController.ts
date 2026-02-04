@@ -97,7 +97,10 @@ async function awardJustFinishedEventsForUser(userId: number): Promise<number> {
     } catch (e: any) {
       // Jeżeli już istnieje EventCompletion (P2002), ignorujemy.
       if (e?.code === "P2002") continue;
-      console.warn(`[rank] awarding failed for user=${userId} event=${event.id}:`, e?.message ?? e);
+      console.warn(
+        `[rank] awarding failed for user=${userId} event=${event.id}:`,
+        e?.message ?? e
+      );
     }
   }
 
@@ -106,11 +109,14 @@ async function awardJustFinishedEventsForUser(userId: number): Promise<number> {
 
 export const getFilteredEvents = async (req: Request, res: Response) => {
   const userId = Number(req.query.userId);
+
   const ownOnly = req.query.ownOnly === "true";
+  const joinedOnly = req.query.joinedOnly === "true";
+
   const maxDistance = req.query.distance ? Number(req.query.distance) : null;
   const minDistance = req.query.minDistance ? Number(req.query.minDistance) : 0;
-  const userLat = Number(req.query.latitude);
-  const userLng = Number(req.query.longitude);
+  const userLat = req.query.latitude ? Number(req.query.latitude) : NaN;
+  const userLng = req.query.longitude ? Number(req.query.longitude) : NaN;
 
   if (!userId) {
     return res.status(400).json({ error: "Brak userId" });
@@ -120,6 +126,7 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
     console.log("🔍 Parametry zapytania:", {
       userId,
       ownOnly,
+      joinedOnly,
       minDistance,
       maxDistance,
       userLat,
@@ -129,47 +136,73 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
     // ⬇️ NAJPIERW nalicz ukończone eventy (rank) dla tego usera
     const newAwards = await awardJustFinishedEventsForUser(userId);
     if (newAwards > 0) {
-      console.log(`🏅 Użytkownik ${userId}: naliczono ${newAwards} ukończonych wydarzeń`);
+      console.log(
+        `🏅 Użytkownik ${userId}: naliczono ${newAwards} ukończonych wydarzeń`
+      );
     }
 
+    /**
+     * ✅ 1) MOJE WYDARZENIA = tylko stworzone (creatorId === userId)
+     *    GET /api/events?userId=...&ownOnly=true
+     */
     if (ownOnly) {
+      const now = new Date();
+
+      const created = await prisma.event.findMany({
+        where: {
+          creatorId: userId,
+          endDate: { gt: now }, // auto-ukrywanie zakończonych
+        },
+        include: {
+          creator: { select: { id: true, userName: true } },
+          eventParticipants: true,
+        },
+      });
+
+      const mapped = created.map((ev) => ({
+        id: ev.id,
+        activity: ev.activity,
+        location: ev.location,
+        startDate: ev.startDate,
+        endDate: ev.endDate,
+        creator: ev.creator,
+        spots: ev.maxParticipants,
+        participantsCount: ev.eventParticipants.length,
+        isUserJoined: true,
+        isCreator: true,
+      }));
+
+      console.log("📦 Zwracane wydarzenia (ownOnly=created):", mapped);
+      return res.json(mapped);
+    }
+
+    /**
+     * ✅ 2) DOŁĄCZONE WYDARZENIA = tylko takie, gdzie user jest uczestnikiem
+     *    i NIE jest twórcą
+     *    GET /api/events?userId=...&joinedOnly=true
+     */
+    if (joinedOnly) {
       const now = new Date();
 
       const joined = await prisma.eventParticipant.findMany({
         where: {
           userId,
-          event: { endDate: { gt: now } }, // <— „auto usuwanie” z listy = filtrowanie po endDate
+          event: { endDate: { gt: now } },
         },
         include: {
           event: {
             include: {
-              creator: { select: { userName: true } },
-              eventParticipants: {
-                include: { user: { select: { gender: true } } },
-              },
+              creator: { select: { id: true, userName: true } },
+              eventParticipants: true,
             },
           },
         },
       });
 
-      const created = await prisma.event.findMany({
-        where: {
-          creatorId: userId,
-          endDate: { gt: now },
-        },
-        include: {
-          creator: { select: { userName: true } },
-          eventParticipants: {
-            include: { user: { select: { gender: true } } },
-          },
-        },
-      });
-
-      const merged = [...joined.map((e) => e.event), ...created];
-      const map = new Map<number, any>();
-
-      for (const ev of merged) {
-        map.set(ev.id, {
+      const mapped = joined
+        .map((r) => r.event)
+        .filter((ev) => ev.creatorId !== userId) // tylko cudze
+        .map((ev) => ({
           id: ev.id,
           activity: ev.activity,
           location: ev.location,
@@ -178,17 +211,21 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
           creator: ev.creator,
           spots: ev.maxParticipants,
           participantsCount: ev.eventParticipants.length,
-          isUserJoined: ev.eventParticipants.some((p) => p.userId === userId),
-          isCreator: ev.creatorId === userId,
-        });
-      }
+          isUserJoined: true,
+          isCreator: false,
+        }));
 
-      console.log("📦 Zwracane wydarzenia (ownOnly):", Array.from(map.values()));
-      return res.json(Array.from(map.values()));
+      console.log("📦 Zwracane wydarzenia (joinedOnly):", mapped);
+      return res.json(mapped);
     }
 
+    /**
+     * ✅ 3) STANDARDOWA LISTA EVENTÓW (Events screen) z dystansami
+     */
+
+    const hasCoords = Number.isFinite(userLat) && Number.isFinite(userLng);
     const baseWhere =
-      maxDistance && userLat && userLng ? { creatorId: { not: userId } } : {};
+      maxDistance && hasCoords ? { creatorId: { not: userId } } : {};
 
     const events = await prisma.event.findMany({
       where: baseWhere,
@@ -217,14 +254,9 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       }))
     );
 
-    console.log(
-      "👤 Twórcy wydarzeń:",
-      events.map((e) => `${e.id} - ${e.creator.userName}`)
-    );
-
     let filteredEvents = events;
 
-    if (maxDistance && userLat && userLng) {
+    if (maxDistance && hasCoords) {
       filteredEvents = events.filter((event) => {
         if (!event.latitude || !event.longitude) {
           console.log(`⚠️ Event ${event.id} nie ma współrzędnych`);
@@ -243,7 +275,12 @@ export const getFilteredEvents = async (req: Request, res: Response) => {
       });
     }
 
-    const mapped = filteredEvents.map((event) => ({
+    const now = new Date();
+    const upcomingEvents = filteredEvents.filter(
+      (event) => new Date(event.endDate) > now
+    );
+
+    const mapped = upcomingEvents.map((event) => ({
       id: event.id,
       activity: event.activity,
       location: event.location,
