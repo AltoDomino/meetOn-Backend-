@@ -27,18 +27,28 @@ export async function completeEventForUser(params: { userId: number; eventId: nu
 
   const event = await prisma.event.findUnique({
     where: { id: eventId },
-    select: { id: true, endDate: true, locationId: true, locationKey: true, location: true },
+    select: {
+      id: true,
+      endDate: true,
+      locationId: true,
+      locationKey: true,
+      location: true,
+      creatorId: true, // ✅ DODAJ
+    },
   });
+
   if (!event) throw new Error("EVENT_NOT_FOUND");
   if (new Date(event.endDate).getTime() > Date.now()) throw new Error("EVENT_NOT_FINISHED");
 
-  // Czy user uczestniczył?
+  const isCreator = event.creatorId === userId;
+
   const participation = await prisma.eventParticipant.findUnique({
     where: { eventId_userId: { eventId, userId } },
     select: { eventId: true, userId: true },
   });
-  // Możesz też dopuścić twórcę eventu, jeśli masz pole creatorId
-  if (!participation /* && event.creatorId !== userId */) {
+
+  // ✅ uczestnik LUB twórca
+  if (!participation && !isCreator) {
     throw new Error("NOT_A_PARTICIPANT");
   }
 
@@ -46,20 +56,16 @@ export async function completeEventForUser(params: { userId: number; eventId: nu
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1) próbujemy wstawić zaliczenie (idempotencja przez unique)
-      const completion = await tx.eventCompletion.create({
+      await tx.eventCompletion.create({
         data: { userId, eventId, locationKey: locKey },
       });
 
-      // 2) próbujemy wstawić wizytę lokalizacji (unikalny klucz)
       await tx.userLocationVisit.upsert({
         where: { userId_locationKey: { userId, locationKey: locKey } },
         create: { userId, locationKey: locKey },
         update: {},
       });
 
-      // 3) przeliczenie agregatów (lub inkrementacje)
-      // Możesz inkrementować rankCompletedEvents += 1 i policzyć unikalne lokalizacje count(*) z UserLocationVisit.
       const uniqueLocations = await tx.userLocationVisit.count({
         where: { userId },
       });
@@ -82,7 +88,6 @@ export async function completeEventForUser(params: { userId: number; eventId: nu
       awarded: true,
     };
   } catch (e: any) {
-    // P2002 = unique constraint violation -> zaliczenie już istniało (idempotencja)
     if (e?.code === "P2002") {
       const stats = await getUserRankStats(userId);
       return { ...stats, awarded: false };
@@ -90,3 +95,4 @@ export async function completeEventForUser(params: { userId: number; eventId: nu
     throw e;
   }
 }
+
